@@ -19,11 +19,14 @@ human-anatomy-3d/
 │
 ├── Models-of-human-anatomy/               # Z-Anatomy Open-Access 3D Atlas
 │   ├── TA2.csv                            # 7,316 Terminologia Anatomica 2 terms in 8 languages
-│   ├── Z-Anatomy.zip                      # Blender application template (3D anatomical atlas)
-│   ├── Z-Biomechanics.7z                  # Biomechanics anatomical models
+│   ├── Z-Anatomy/                         # Blender application template (3D anatomical atlas & Startup.blend)
+│   ├── Z-Biomechanics/                    # Biomechanics anatomical models (Startup.blend)
 │   └── Anatomy-shortcuts.py               # Blender automation tools
 │
-└── bodyparts3d_partof_parts_list_e.csv    # 1,370 FMA concept IDs mapped to organ structures
+├── bodyparts3d_partof_parts_list_e.csv    # 1,370 FMA concept IDs mapped to organ structures
+├── Anatomy Insights Series.mp4            # Video tutorial: Comprehensive anatomical navigation
+└── Mastering Anatomy Insights.mp4         # Video tutorial: Clinical insights & system walk-through
+
 ```
 
 ---
