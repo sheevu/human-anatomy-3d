@@ -10,3 +10,5 @@ output/
 !.env.example
 .wrangler/
 supabase/.temp/
+
+.vercel
