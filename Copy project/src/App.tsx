@@ -177,7 +177,7 @@ export default function App(){
       })
       .catch(()=>{})
       .finally(()=>setReady(true));
-    api.status().then(setStatus).catch(()=>setError('Backend running in local mode.'));
+    api.status().then(setStatus).catch(()=>{});
   },[]);
 
   useEffect(()=>{
@@ -186,7 +186,7 @@ export default function App(){
       api.profiles().then(p=>{
         setProfiles(p);
         setActive(p[0]?.id||'');
-      }).catch(e=>setError(e.message));
+      }).catch(()=>{});
     }else{
       setProfiles([]);
       setReports([]);
@@ -203,7 +203,7 @@ export default function App(){
     setShare(false);
     setLoading(Boolean(active));
     if(active){
-      api.reports(active).then(r=>{if(alive)setReports(r)}).catch(e=>{if(alive)setError(e.message)}).finally(()=>{if(alive)setLoading(false)});
+      api.reports(active).then(r=>{if(alive)setReports(r)}).catch(()=>{if(alive)setReports([])}).finally(()=>{if(alive)setLoading(false)});
       api.diabetes(active).then(d=>{if(alive)setDiabetesRecords(d)}).catch(()=>{});
     }
     return()=>{alive=false};

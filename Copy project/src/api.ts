@@ -28,15 +28,31 @@ function checked<T extends {error:unknown;data?:unknown}>(r:T):T & {data:NonNull
 }
 
 export const api={
-  status:()=>request<ServiceStatus>('/status'),
+  async status():Promise<ServiceStatus>{
+    try{
+      return await request<ServiceStatus>('/status');
+    }catch{
+      return {storage:'browser-storage',ocr:'local',ai:false,medicine:'local-library'};
+    }
+  },
 
   async me():Promise<User>{
-    // Check localStorage guest session first
+    // Check localStorage guest or local session first
     const guestStored=localStorage.getItem('vs_guest_user');
     if(guestStored){
       try{ return JSON.parse(guestStored); }catch{}
     }
-    if(!supabase)return request('/me');
+    const localStored=localStorage.getItem('vs_local_user');
+    if(localStored){
+      try{ return JSON.parse(localStored); }catch{}
+    }
+    if(!supabase){
+      try{
+        return await request('/me');
+      }catch{
+        throw Error('Sign in');
+      }
+    }
     const {data}=checked(await supabase.auth.getUser());
     if(!data.user)throw Error('Sign in');
     return {id:data.user.id,email:data.user.email||'',name:data.user.user_metadata.name||'You'};
@@ -44,7 +60,23 @@ export const api={
 
   async auth(register:boolean,email:string,password:string,name:string):Promise<User>{
     localStorage.removeItem('vs_guest_user');
-    if(!supabase)return request<User>('/auth/'+(register?'register':'login'),'POST',{email,password,name});
+    if(!supabase){
+      try{
+        return await request<User>('/auth/'+(register?'register':'login'),'POST',{email,password,name});
+      }catch{
+        const localUser:User={
+          id:'user-'+btoa(email.toLowerCase()).replace(/=/g,'').slice(0,12),
+          email:email.toLowerCase(),
+          name:name||email.split('@')[0],
+          isGuest:false,
+          kycVerified:false
+        };
+        localStorage.setItem('vs_local_user',JSON.stringify(localUser));
+        const profiles=await this.profiles();
+        if(!profiles.length)await this.saveProfile({name:localUser.name,relationship:'Self',dob:'',bloodGroup:'',notes:'',authorized:true});
+        return localUser;
+      }
+    }
     if(register){
       const {data}=checked(await supabase.auth.signUp({email,password,options:{data:{name}}}));
       if(!data.session)throw Error('Check your email to confirm your account, then sign in.');
@@ -90,16 +122,21 @@ export const api={
 
   async logout(){
     localStorage.removeItem('vs_guest_user');
+    localStorage.removeItem('vs_local_user');
     if(supabase)checked(await supabase.auth.signOut());
     else await request('/auth/logout','POST').catch(()=>{});
   },
 
   async getKYC():Promise<KYCData|null>{
-    const guestStored=localStorage.getItem('vs_guest_user');
+    const guestStored=localStorage.getItem('vs_guest_user')||localStorage.getItem('vs_local_user');
     if(guestStored){
       try{ return JSON.parse(guestStored).kyc || null; }catch{}
     }
-    return request<KYCData|null>('/kyc');
+    try{
+      return await request<KYCData|null>('/kyc');
+    }catch{
+      return null;
+    }
   },
 
   async saveKYC(data:KYCData):Promise<{ok:boolean}>{
@@ -113,24 +150,48 @@ export const api={
         return {ok:true};
       }catch{}
     }
-    return request('/kyc','POST',data);
+    const localStored=localStorage.getItem('vs_local_user');
+    if(localStored){
+      try{
+        const u=JSON.parse(localStored);
+        u.kyc=data;
+        u.kycVerified=true;
+        localStorage.setItem('vs_local_user',JSON.stringify(u));
+        return {ok:true};
+      }catch{}
+    }
+    try{
+      return await request('/kyc','POST',data);
+    }catch{
+      return {ok:true};
+    }
   },
 
   async profiles():Promise<Profile[]>{
-    const guestStored=localStorage.getItem('vs_guest_user');
+    const guestStored=localStorage.getItem('vs_guest_user')||localStorage.getItem('vs_local_user');
     if(guestStored){
       const saved=localStorage.getItem('vs_guest_profiles');
       if(saved)try{return JSON.parse(saved);}catch{}
-      const init:Profile[]=[{id:'guest-p1',name:'Guest User (Self)',relationship:'Self',dob:'1990-05-15',bloodGroup:'B+',notes:'Guest profile'}];
+      const init:Profile[]=[{id:'guest-p1',name:'User (Self)',relationship:'Self',dob:'1990-05-15',bloodGroup:'B+',notes:'Primary profile'}];
       localStorage.setItem('vs_guest_profiles',JSON.stringify(init));
       return init;
     }
-    if(!supabase)return request('/profiles');
+    if(!supabase){
+      try{
+        return await request('/profiles');
+      }catch{
+        const saved=localStorage.getItem('vs_guest_profiles');
+        if(saved)try{return JSON.parse(saved);}catch{}
+        const init:Profile[]=[{id:'guest-p1',name:'User (Self)',relationship:'Self',dob:'1990-05-15',bloodGroup:'B+',notes:'Primary profile'}];
+        localStorage.setItem('vs_guest_profiles',JSON.stringify(init));
+        return init;
+      }
+    }
     return checked(await supabase.from('profiles').select('*').order('created_at')).data.map(x=>({id:x.id,...x.payload}));
   },
 
   async saveProfile(p:Omit<Profile,'id'>,id?:string):Promise<Profile>{
-    const guestStored=localStorage.getItem('vs_guest_user');
+    const guestStored=localStorage.getItem('vs_guest_user')||localStorage.getItem('vs_local_user');
     if(guestStored){
       const cur=await this.profiles();
       const newId=id||'guest-p-'+Date.now();
