@@ -1,5 +1,123 @@
 # Human Anatomy 3D & VedaShield AI
 
+## 🌟 Copy project (All-In-One Healthcare & 3D Anatomy Suite)
+
+The `Copy project` folder contains the upgraded full-stack healthcare web application featuring:
+1. **Secure Authentication & Guest Mode**: Instant access with 1-click Guest login or username/password.
+2. **User KYC Verification**: Country & Nationality selection (190+ countries), Document Verification, Emergency Contacts, and consent handling.
+3. **Home Landing Scanner**: Instant lab report file upload or direct camera capture (environment/webcam) with support for popular Indian diagnostic labs (Dr Lal PathLabs, Apollo Diagnostics, Metropolis, SRL Diagnostics).
+4. **Bilingual AI Chat (English & हिन्दी)**: Dynamic switching between English and Hindi, contextual report advice, and quick clinical prompts.
+5. **3D Interactive Organ Anatomy**: Real 3D anatomy with auto-zoom on organ click, glowing red/amber alert highlights on abnormal organs, and comprehensive clinical care drawer (biomarker analysis, recommended cures, dietary dos & don'ts, questions for doctors).
+6. **Daily Diabetes Tracker**: Log blood glucose readings with Before food / After food dropdown, auto date and time selection, Recharts area trend graph, and clinical dietary guidance.
+
+### Quick Start for `Copy project`
+
+```bash
+cd "Copy project"
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+To build for production:
+```bash
+cd "Copy project"
+npm run build
+```
+
+---
+
+## 🚀 Deploying on Vercel
+
+This repository is pre-configured with `vercel.json` for zero-configuration deployment to Vercel with Single Page Application (SPA) client routing:
+
+### Option 1: Via Vercel Web Dashboard (Recommended)
+1. Push your repository to GitHub: `https://github.com/sheevu/human-anatomy-3d`.
+2. Go to [vercel.com](https://vercel.com) and log in.
+3. Click **Add New...** -> **Project**.
+4. Import `human-anatomy-3d`.
+5. In project configuration:
+   - **Root Directory**: Select `Copy project` (or leave as root, root `vercel.json` handles building `Copy project`).
+   - **Framework Preset**: `Vite`.
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+6. Click **Deploy**.
+
+### Option 2: Via Vercel CLI
+```bash
+npm install -g vercel
+cd "Copy project"
+vercel
+```
+
+---
+
+## Interactive Anatomy Explorer (Original)
+
+The asset tests check all eleven GLBs for real geometry, coordinate bounds,
+manifest hashes where present, retained attribution, and a total size below 3 MB.
+No lint configuration is present in this project; TypeScript checking is available.
+
+### Controls
+
+- Drag to orbit; wheel or pinch to zoom; right-drag or two-finger drag to pan.
+- Click/tap a mesh or select its name in the structure browser to read details.
+- Filter by body system; search names within that system. Eye buttons hide/show
+  groups. Search narrows the list without removing anatomical context.
+- Focus frames the selected mesh using its actual bounds. Isolate hides the other
+  groups; In context restores the current system. Full body restores all groups,
+  clears filters/selection, stops rotation and resets the camera.
+- Front, back and side presets, zoom buttons, a selected-label toggle and optional
+  auto-rotation are available. Body surface opacity is adjustable.
+- With the viewport focused: left/right arrows orbit, up/down arrows pan vertically,
+  `+`/`-` zoom and `R` resets. Escape clears selection and returns to body framing.
+  All structure and toolbar buttons support keyboard navigation.
+- Camera transitions respect reduced-motion preferences. Rendering is on demand,
+  except while moving or auto-rotating; pixel ratio is capped at 1.5.
+
+### Verified Model Scope and Licensing
+
+The explorer uses only the existing `vedashield-ai/public/models/*.glb` files:
+eight organ groups (brain, heart, lungs, liver, stomach, pancreas, kidneys,
+intestines), one thoracic skeletal assembly and one major-vessel assembly. The
+external body is a non-selectable context layer. Each file contains one merged
+mesh: paired organs, individual ribs, chambers, vessels and microscopic anatomy
+are **not** separately selectable. The skeletal asset is a chest assembly, not a
+full skeleton. No procedural organ substitutes are used when a model fails.
+
+BodyParts3D, copyright The Database Center for Life Science. Existing derived
+meshes retain the mirror's CC BY-SA 2.1 Japan terms; see
+[attribution](vedashield-ai/public/models/ATTRIBUTION.md) and
+[source notice](vedashield-ai/public/models/LICENSE-source.txt).
+The [official database license](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html)
+currently states CC BY 4.0; this change does not relicense the shipped derivatives.
+These meshes were grouped, simplified, transformed and converted to GLB by the
+existing project. The explorer does not load the repository's raw OBJ or Z-Anatomy
+Blender datasets. Generic reference geometry is not a patient scan or a diagnostic
+or surgical atlas; simplified shapes and curated descriptions need specialist
+review for formal teaching use.
+
+For complete structure-level interaction, export the raw datasets into licensed,
+optimized GLBs preserving separate meshes, stable IDs, anatomical names, sidedness,
+system membership and a common coordinate frame. Validate the identifier mapping
+and anatomy with a qualified reviewer, then add per-system lazy loading and asset
+coverage tests. Merely listing a raw OBJ in the catalogue does not make it a
+selectable web model.
+
+### Failure Handling and Hosting
+
+Missing models display a retry notice while available models and text remain
+usable. Devices without WebGL can use the text browser. On graphics-context loss,
+Retry recreates the canvas; persistent device limitations may prevent 3D rendering.
+
+`npm run build` writes the static frontend to `vedashield-ai/dist`. A static host
+must serve `index.html` for `/anatomy` and serve `/models/*` as real binary files
+(not an HTML fallback). Vite dev/preview already handle the app route. The existing
+`wrangler.toml` names the healthcare backend, whose entry imports Node filesystem
+and server APIs; a production Workers deployment is not validated by a frontend
+build. No deployment or backend changes are part of this explorer upgrade.
+
 A comprehensive 3D human anatomy asset repository and full-stack AI healthcare Progressive Web App (PWA) designed for interactive anatomical exploration, medical report analysis, and family health management.
 
 ---

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+.env
+output/
+.playwright-cli/
+*.log
+.dev.vars
+.env.*
+!.env.example
+.wrangler/
+supabase/.temp/

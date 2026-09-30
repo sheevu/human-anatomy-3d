@@ -1112,6 +1112,7 @@ export function AnatomyViewer({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+          <a href="/anatomy" className="px-3 py-2 border border-emerald-500 rounded-lg whitespace-nowrap text-emerald-200">Open anatomy explorer</a>
           {/* Auto-Orbit Toggle */}
           <button
             onClick={() => setAutoRotate(!autoRotate)}

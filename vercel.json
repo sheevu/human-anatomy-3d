@@ -1,0 +1,11 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd \"Copy project\" && npm install && npm run build",
+  "outputDirectory": "Copy project/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

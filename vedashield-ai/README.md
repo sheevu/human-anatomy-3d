@@ -1,5 +1,22 @@
 # VedaShield AI (वेदशील्ड एआई) · Complete Healthcare PWA
 
+## Public Anatomy Explorer
+
+Use Node.js 22.13+ and run `npm ci`, then `npm run dev`. Open
+`http://localhost:5173/anatomy` without signing in. The existing healthcare
+workspace remains at `/`. Run `npm run typecheck`, `npm test` and `npm run build`
+to validate the frontend and shipped anatomy assets; `npm run preview` serves
+the production build locally. No lint script is configured.
+
+The explorer supports actual mesh picking, name search, six system filters,
+per-group visibility, isolation, labels, orbit/zoom/pan and full-body reset.
+There are ten selectable **merged groups**, not 2,234 individually selectable
+structures. See the [repository README](../README.md#interactive-anatomy-explorer)
+for controls, mobile behavior, licenses, hosting and coverage limitations.
+
+This route needs no backend or credentials. The older healthcare feature
+descriptions below are outside the scope of the explorer's verification.
+
 > **"Smart Safety. Expert Care."**  
 > Private medical report insights, interactive 3D human anatomy, verified Indian medicine information, and secure WhatsApp summary sharing for families.
 

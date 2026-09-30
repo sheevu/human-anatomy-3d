@@ -9,5 +9,8 @@
 Thumbs.db
 .vscode/
 
+# Untracked visualizer directory
+visualizer/
+
 # Problem directory
 problem/
