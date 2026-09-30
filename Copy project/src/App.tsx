@@ -262,6 +262,8 @@ export default function App(){
         onSelect={handleSelectOrgan}
         highlighted={highlighted}
         large={page==='anatomy'}
+        onOpenCareModal={()=>setShowOrganModal(true)}
+        onOpenChatWithOrgan={()=>navigate('chat')}
       />
     </Suspense>
   );
