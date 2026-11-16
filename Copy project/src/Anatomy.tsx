@@ -18,6 +18,8 @@ import {
   DoubleSide,
   PerspectiveCamera,
   Group,
+  AdditiveBlending,
+  Color,
 } from 'three';
 import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
 import {
@@ -179,6 +181,7 @@ function OrganGeometry({
   organId,
   onBounds,
   highlighted = false,
+  illuminated = true,
 }: {
   url: string;
   color: string;
@@ -190,6 +193,7 @@ function OrganGeometry({
   organId: string;
   onBounds?: (id: string, bounds: Bounds) => void;
   highlighted?: boolean;
+  illuminated?: boolean;
 }) {
   const { scene } = useGLTF(url);
   const meshRef = useRef<Group>(null);
@@ -218,19 +222,22 @@ function OrganGeometry({
         const material = o.material as MeshStandardMaterial;
         o.visible = !hidden.has(id) && (!isolate || active);
 
-        // Educational PBR shading: amber means a report-linked area of interest, never diagnosed damage.
+        // Anatomical highlight means focus or relevance, not confirmed organ damage.
         if (active) {
-          material.color.set('#45c8e8');
-          material.emissive.set('#075c79');
-          material.emissiveIntensity = 0.30;
+          material.color.set('#ffcc86');
+          material.emissive.set('#ff8c25');
+          material.emissiveIntensity = 1.35;
+          material.roughness = 0.33;
         } else if (highlighted) {
-          material.color.set('#efa750');
-          material.emissive.set('#8c460d');
-          material.emissiveIntensity = 0.32;
+          material.color.set('#ffc27b');
+          material.emissive.set('#f78e30');
+          material.emissiveIntensity = 1.05;
+          material.roughness = 0.38;
         } else {
           material.color.set(color);
           material.emissive.set(color);
-          material.emissiveIntensity = 0.055;
+          material.emissiveIntensity = illuminated ? 0.65 : 0.08;
+          material.roughness = 0.42;
         }
         material.opacity = opacity;
         material.transparent = opacity < 1;
@@ -238,7 +245,7 @@ function OrganGeometry({
         material.needsUpdate = true;
       }
     });
-  }, [copy, selected, color, opacity, hidden, isolate, highlighted]);
+  }, [copy, selected, color, opacity, hidden, isolate, highlighted, illuminated]);
 
   useEffect(() => {
     if (organId && onBounds) {
@@ -282,6 +289,39 @@ function OrganGeometry({
   };
 
   return <primitive ref={meshRef} object={copy} onClick={select} dispose={null} />;
+}
+
+// Soft additive optical aura for actual anatomical GLB geometry.
+// Overlay is educational, never an assertion of organ injury.
+function OrganAura({position,color,size,strength}:{
+  position:[number,number,number];color:string;size:number;strength:number;
+}) {
+  const uniforms = useMemo(
+    () => ({ uColor:{value:new Color(color)},uStrength:{value:strength} }),
+    [color,strength]
+  );
+  return <sprite position={position} scale={[size,size,1]} renderOrder={5} raycast={() => []}>
+    <shaderMaterial
+      uniforms={uniforms}
+      vertexShader={`
+        varying vec2 vUv;
+        void main() {
+          vUv=uv;
+          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+        }`}
+      fragmentShader={`
+        varying vec2 vUv;
+        uniform vec3 uColor;
+        uniform float uStrength;
+        void main() {
+          float r=length((vUv-0.5)*2.0);
+          float halo=exp(-5.5*r*r)*smoothstep(1.0,0.35,r);
+          gl_FragColor=vec4(uColor,halo*uStrength);
+        }`}
+      transparent depthTest={false} depthWrite={false}
+      toneMapped={false} blending={AdditiveBlending}
+    />
+  </sprite>;
 }
 
 // Authentic Bone & Skeletal Assembly from BodyParts3D
@@ -398,10 +438,11 @@ function BodySilhouette({ opacity = 0.12, visible = true }: { opacity: number; v
     clone.traverse((o) => {
       if (o instanceof Mesh) {
         o.material = new MeshStandardMaterial({
-          color: '#a3c2b8',
-          roughness: 0.75,
-          metalness: 0.02,
+          color: '#74b8ce',
+          roughness: 0.5,
+          metalness: 0.03,
           transparent: true,
+          depthWrite: false,
           opacity: opacity,
           side: DoubleSide,
         });
@@ -433,7 +474,7 @@ function OrganRadarBeacon({
   highlighted?: boolean;
 }) {
   const groupRef = useRef<Group>(null);
-  const color = highlighted ? '#ef4444' : '#22c55e';
+  const color = highlighted ? '#ffb65c' : '#53dcf7';
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -513,7 +554,8 @@ export default function Anatomy({
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [showVascular, setShowVascular] = useState(true);
   const [showSkin, setShowSkin] = useState(true);
-  const [opacity, setOpacity] = useState(0.12);
+  const [opacity, setOpacity] = useState(0.075);
+  const [illuminated, setIlluminated] = useState(true);
 
   // States
   const [isolate, setIsolate] = useState(false);
@@ -590,7 +632,8 @@ export default function Anatomy({
   function restore() {
     setHidden(new Set());
     setIsolate(false);
-    setOpacity(0.12);
+    setOpacity(0.075);
+    setIlluminated(true);
     setRotating(false);
     setShowSkeleton(true);
     setShowVascular(true);
@@ -869,14 +912,14 @@ export default function Anatomy({
               {/* 2. Authentic Skeletal Thoracic Assembly from BodyParts3D */}
               <SkeletalAssembly
                 visible={showSkeleton && !isolate}
-                opacity={0.88}
+                opacity={illuminated ? 0.4 : 0.88}
                 onSelect={(name) => chooseOrgan('heart')} // Framing chest on rib click
               />
 
               {/* 3. Authentic Vascular Tree from BodyParts3D */}
               <VascularNetwork
                 visible={showVascular && !isolate}
-                opacity={0.92}
+                opacity={illuminated ? 0.68 : 0.92}
                 onSelect={() => chooseOrgan('heart')}
               />
 
@@ -893,8 +936,27 @@ export default function Anatomy({
                   onSelect={chooseOrgan}
                   onBounds={rememberBounds}
                   highlighted={highlighted.includes(k)}
+                  illuminated={illuminated}
                 />
               ))}
+
+
+              {/* Gentle optical auras anchored to each actual organ bounds. */}
+              {(illuminated || selected || highlighted.length > 0) &&
+                organKeys.map((k) => {
+                  if (hidden.has(k) || (isolate && selected !== k)) return null;
+                  const focused = selected === k;
+                  const flagged = highlighted.includes(k);
+                  if (!illuminated && !focused && !flagged) return null;
+                  const bounds = organBounds[k];
+                  const position = bounds?.center ?? ORGAN_DATA[k]?.center;
+                  if (!position) return null;
+                  const extent = bounds ? Math.max(...bounds.size) : 0.4;
+                  return <OrganAura key={k + '-aura'} position={position}
+                    color={focused || flagged ? '#ff9b35' : '#1bc0eb'}
+                    size={Math.min(1.1,Math.max(0.3,extent*1.2))}
+                    strength={focused ? 0.95 : flagged ? 0.65 : 0.18} />;
+                })}
 
               {/* 5. 3D Radar Beacon on Selected Organ Surface */}
               {selected && ORGAN_DATA[selected] && (
@@ -911,7 +973,7 @@ export default function Anatomy({
                     style={{
                       padding: '4px 10px',
                       borderRadius: '20px',
-                      backgroundColor: isAbnormal ? 'rgba(153, 27, 27, 0.95)' : 'rgba(6, 78, 59, 0.95)',
+                      backgroundColor: isAbnormal ? 'rgba(116, 67, 16, 0.95)' : 'rgba(8, 51, 68, 0.95)',
                       border: isAbnormal ? '1px solid #ef4444' : '1px solid #34d399',
                       color: '#ffffff',
                       fontSize: '11px',
@@ -941,6 +1003,17 @@ export default function Anatomy({
             <CameraRig view={view} controls={controls} />
           </Canvas>
         </ViewerBoundary>
+
+        <button type="button" className="atlas-illumination-switch"
+          aria-pressed={illuminated}
+          onClick={() => setIlluminated((value) => !value)}
+          title={hi ? 'अंगों की शैक्षिक रोशनी' : 'Educational organ illumination, not diagnostic'}>
+          <Sparkles size={15}/>
+          {illuminated ? (hi ? 'रोशनी चालू' : 'Organ illumination ON') : (hi ? 'रोशनी बंद' : 'Illuminate organs')}
+        </button>
+        <div className="atlas-educational-disclaimer">
+          {hi ? 'सिर्फ शारीरिक शिक्षा • रोग का निदान नहीं' : 'ANATOMY VISUALIZATION · NOT A DIAGNOSIS'}
+        </div>
 
         {/* Viewport Floating Controls: View Presets & Zoom Tools */}
         <div
