@@ -7,7 +7,6 @@
   --atlas-edge:rgba(42,194,239,.26);
   --atlas-cyan:#56d9f8;
   --atlas-amber:#f4b35b;
-  color:var(--atlas-ink);
 }
 .anatomy .atlas-stage{
   isolation:isolate;
@@ -64,8 +63,6 @@
   color:#ffffff;
 }
 .anatomy .atlas-selection{border-top:1px solid var(--atlas-edge)}
-.anatomy .atlas-selection strong{color:var(--atlas-ink)}
-.anatomy .atlas-selection small{color:var(--atlas-muted)}
 .anatomy-expanded{background:#071420 !important}
 .anatomy-expanded .anatomy-top{background:#071420 !important}
 @media(max-width:640px){
