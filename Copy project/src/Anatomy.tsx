@@ -340,11 +340,14 @@ function SkeletalAssembly({
     clone.traverse((o) => {
       if (o instanceof Mesh) {
         o.material = new MeshStandardMaterial({
-          color: '#ede7db', // Authentic bone ivory
-          roughness: 0.45,
+          color: '#f2e9d8', // Authentic bone ivory, with restrained educational rim glow
+          emissive: '#37a3ca',
+          emissiveIntensity: 0.20,
+          roughness: 0.43,
           metalness: 0.04,
           side: DoubleSide,
           transparent: opacity < 1,
+          depthWrite: opacity >= 0.95,
           opacity: opacity,
         });
       }
@@ -392,13 +395,14 @@ function VascularNetwork({
     clone.traverse((o) => {
       if (o instanceof Mesh) {
         o.material = new MeshStandardMaterial({
-          color: '#c02636', // Arterial crimson
-          emissive: '#4a0810',
-          emissiveIntensity: 0.25,
-          roughness: 0.32,
-          metalness: 0.15,
+          color: '#f05371', // Actual vascular GLB, not simulated vessel paths
+          emissive: '#e63c63',
+          emissiveIntensity: 0.57,
+          roughness: 0.36,
+          metalness: 0.08,
           side: DoubleSide,
           transparent: opacity < 1,
+          depthWrite: opacity >= 0.95,
           opacity: opacity,
         });
       }
