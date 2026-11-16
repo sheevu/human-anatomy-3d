@@ -200,8 +200,8 @@ function OrganGeometry({
       if (o instanceof Mesh) {
         o.material = new MeshStandardMaterial({
           color,
-          roughness: 0.38,
-          metalness: 0.08,
+          roughness: 0.48,
+          metalness: 0.04,
           side: DoubleSide,
         });
         o.userData.atlasId = organId;
@@ -218,19 +218,19 @@ function OrganGeometry({
         const material = o.material as MeshStandardMaterial;
         o.visible = !hidden.has(id) && (!isolate || active);
 
-        // Realistic PBR shading + glowing amber-red alert highlight
+        // Educational PBR shading: amber means a report-linked area of interest, never diagnosed damage.
         if (active) {
-          material.color.set('#2caa91');
-          material.emissive.set('#106958');
-          material.emissiveIntensity = 0.5;
+          material.color.set('#45c8e8');
+          material.emissive.set('#075c79');
+          material.emissiveIntensity = 0.30;
         } else if (highlighted) {
-          material.color.set('#e05050');
-          material.emissive.set('#aa2222');
-          material.emissiveIntensity = 0.65;
+          material.color.set('#efa750');
+          material.emissive.set('#8c460d');
+          material.emissiveIntensity = 0.32;
         } else {
           material.color.set(color);
           material.emissive.set(color);
-          material.emissiveIntensity = 0.12;
+          material.emissiveIntensity = 0.055;
         }
         material.opacity = opacity;
         material.transparent = opacity < 1;
@@ -814,8 +814,8 @@ export default function Anatomy({
           height: expanded ? '72vh' : large ? '540px' : '420px',
           borderRadius: '12px',
           overflow: 'hidden',
-          backgroundColor: '#07100e',
-          border: '1px solid #162c23',
+          backgroundColor: '#081827',
+          border: '1px solid #1a526c',
         }}
       >
         <ViewerBoundary
@@ -837,11 +837,12 @@ export default function Anatomy({
               setIsolate(false);
             }}
           >
-            {/* Cinematic Medical Studio Lighting */}
-            <ambientLight intensity={1.4} />
-            <directionalLight position={[4, 7, 5]} intensity={2.8} />
-            <directionalLight position={[-4, 2, -4]} intensity={1.4} color="#38bdf8" />
-            <directionalLight position={[0, -5, 2]} intensity={0.6} color="#6ee7b7" />
+            {/* Reference-inspired medical studio lighting; realistic material detail remains visible. */}
+            <ambientLight intensity={0.85} color="#b8d9e9" />
+            <hemisphereLight args={['#badff8', '#152332', 0.7]} />
+            <directionalLight position={[4, 7, 5]} intensity={2.25} color="#fff1dc" />
+            <directionalLight position={[-4, 2, -4]} intensity={1.25} color="#36c9fa" />
+            <directionalLight position={[0, -5, 2]} intensity={0.4} color="#ffb366" />
 
             <Suspense
               fallback={
