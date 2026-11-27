@@ -160,3 +160,13 @@
  .anatomy .atlas-label-card span{font-size:10px}
  .anatomy .atlas-illumination-switch{max-width:calc(100% - 65px)}
 }
+
+/* V6 clinical atlas: quiet neutral surroundings, not a sci-fi dashboard. */
+.anatomy .atlas-reference-layout .atlas-stage{background:radial-gradient(ellipse at 50% 40%,#49535c,#252d34 68%,#1d242b)!important;border-color:#56636c!important;box-shadow:none}
+.anatomy .atlas-reference-layout .atlas-stage::before,.anatomy .atlas-reference-layout .atlas-stage::after{display:none}
+.anatomy .atlas-label-card{background:#202a32;border-color:#46545e;box-shadow:none}
+.anatomy .atlas-label-card strong{color:#f1e9e3!important}
+.anatomy .atlas-label-card span{color:#c9d0d5}
+.anatomy .atlas-label-card:hover,.anatomy .atlas-label-card[aria-pressed=true]{background:#34424c;border-color:#b0bbc3}
+.anatomy .atlas-illumination-switch,.anatomy .atlas-illumination-switch[aria-pressed=true]{box-shadow:none;background:#28343d;border-color:#74838d;color:#f1f4f6}
+.anatomy .detailed-atlas-opacity select{width:100%;min-height:44px;background:#26323a;color:#f1f4f6;border:1px solid #75818a;border-radius:6px;padding:8px}

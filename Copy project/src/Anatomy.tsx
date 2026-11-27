@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
 import {
   Mesh,
@@ -18,9 +18,7 @@ import {
   DoubleSide,
   PerspectiveCamera,
   Group,
-  AdditiveBlending,
-  Color,
-  ShaderMaterial,
+  MeshPhongMaterial,
   FrontSide,
 } from 'three';
 import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
@@ -66,31 +64,13 @@ type View = { bounds: Bounds; direction: 'front' | 'back' | 'side' | 'chest' | '
 const whole: Bounds = { center: [0, 0, 0], size: [2.5, 4.8, 0.8] };
 const organKeys = Object.keys(organs) as Organ[];
 // Educational palette: colors identify anatomy, never clinical severity.
-const atlasColors: Record<string,string> = { brain:'#c58bf4', heart:'#f04462', lungs:'#32c9f5', liver:'#f6a044', stomach:'#37d6c4', pancreas:'#ffd36b', kidneys:'#d86d9c', intestines:'#9484f5' };
+const atlasColors: Record<string,string> = { brain:'#bda79c', heart:'#a84e4b', lungs:'#c88f90', liver:'#925143', stomach:'#c78e83', pancreas:'#d1ae78', kidneys:'#a05a54', intestines:'#bd9584' };
 const atlasNames: Record<string,[string,string]> = {brain:['Brain','मस्तिष्क'],heart:['Heart','हृदय'],lungs:['Lungs','फेफड़े'],liver:['Liver','यकृत'],stomach:['Stomach','आमाशय'],pancreas:['Pancreas','अग्न्याशय'],kidneys:['Kidneys','गुर्दे'],intestines:['Intestines','आंतें']};
 const atlasDescriptions: Record<string,[string,string]> = {brain:['Coordinates movement and thought.','विचार और गति का समन्वय।'],heart:['Pumps blood through the body.','शरीर में रक्त पंप करता है।'],lungs:['Exchange oxygen and carbon dioxide.','ऑक्सीजन और कार्बन डाइऑक्साइड का आदान-प्रदान।'],liver:['Processes nutrients and produces bile.','पोषक तत्वों का प्रसंस्करण और पित्त निर्माण।'],stomach:['Mixes and breaks down food.','भोजन को मिलाता और तोड़ता है।'],pancreas:['Produces digestive enzymes and hormones.','पाचक एंजाइम और हार्मोन बनाता है।'],kidneys:['Filter blood and regulate fluid balance.','रक्त छानते और तरल संतुलन रखते हैं।'],intestines:['Absorb nutrients and water.','पोषक तत्व और पानी अवशोषित करती हैं।']};
 function anatomyMaterial(color:string, shell=false) {
-  return new ShaderMaterial({
-    uniforms:{uColor:{value:new Color(color)},uFocus:{value:0},uLight:{value:1},uOpacity:{value:1},uShell:{value:shell?1:0}},
-    vertexShader:`varying vec3 vNormal; varying vec3 vView;
-      void main(){vec4 p=modelViewMatrix*vec4(position,1.0);vNormal=normalize(normalMatrix*normal);vView=-p.xyz;gl_Position=projectionMatrix*p;}`,
-    fragmentShader:`uniform vec3 uColor;uniform float uFocus,uLight,uOpacity,uShell;
-      varying vec3 vNormal;varying vec3 vView;
-      void main(){vec3 n=normalize(vNormal);vec3 v=normalize(vView);if(!gl_FrontFacing)n=-n;
-        float facing=clamp(abs(dot(n,v)),0.0,1.0);
-        float rim=pow(1.0-facing,2.1);
-        float key=max(dot(n,normalize(vec3(-0.45,0.65,0.8))),0.0);
-        float fill=max(dot(n,normalize(vec3(0.7,-0.3,0.6))),0.0);
-        float spec=pow(max(dot(n,normalize(normalize(vec3(-0.45,0.65,0.8))+v)),0.0),30.0);
-        vec3 rgb=uColor*(0.45+0.65*key+0.22*fill+0.20*uLight)+vec3(0.25,0.65,0.85)*rim*(0.14+0.26*uLight)+vec3(0.8)*spec*0.32;
-        rgb+=vec3(0.75,0.40,0.12)*rim*uFocus*0.65;
-        float a=uOpacity;
-        if(uShell>0.5){rgb=uColor*(0.4+rim*1.4)+vec3(0.15,0.55,0.85)*rim;a=uOpacity*(0.18+rim*1.5);}
-        gl_FragColor=vec4(rgb,clamp(a,0.0,1.0));
-        #include <colorspace_fragment>
-      }`,
-    side:shell?FrontSide:DoubleSide,transparent:shell,depthWrite:!shell,toneMapped:false
-  });
+  return new MeshPhongMaterial({color, emissive:color, emissiveIntensity:shell?0.12:0.18,
+    specular:'#b8a59b', shininess:shell?12:24, side:shell?FrontSide:DoubleSide,
+    transparent:shell,depthWrite:!shell,opacity:shell?0.13:1,toneMapped:false});
 }
 
 // Authentic anatomical data mapped from Z-Anatomy TA2.csv, FMA, and Ayurveda
@@ -245,12 +225,12 @@ function OrganGeometry({
       if (o instanceof Mesh) {
         const id = o.userData.atlasId || o.name;
         const active = id === selected;
-        const material = o.material as ShaderMaterial;
+        const material = o.material as MeshPhongMaterial;
         o.visible = !hidden.has(id) && (!isolate || active);
-        material.uniforms.uColor.value.set(color);
-        material.uniforms.uFocus.value = active ? 1 : highlighted ? 0.65 : 0;
-        material.uniforms.uLight.value = illuminated ? 1 : 0;
-        material.uniforms.uOpacity.value = opacity;
+        material.color.set(color);
+        material.emissive.set(color);
+        material.emissiveIntensity = active ? 0.32 : highlighted ? 0.24 : illuminated ? 0.18 : 0.10;
+        material.opacity = opacity;
         material.transparent = opacity < 1;
         material.depthWrite = opacity >= 0.95;
       }
@@ -268,7 +248,7 @@ function OrganGeometry({
     }
     return () => {
       copy.traverse((o) => {
-        if (o instanceof Mesh) (o.material as ShaderMaterial).dispose();
+        if (o instanceof Mesh) (o.material as MeshPhongMaterial).dispose();
       });
     };
   }, [copy, organId, onBounds]);
@@ -281,39 +261,6 @@ function OrganGeometry({
   };
 
   return <primitive ref={meshRef} object={copy} onClick={select} dispose={null} />;
-}
-
-// Soft additive optical aura for actual anatomical GLB geometry.
-// Overlay is educational, never an assertion of organ injury.
-function OrganAura({position,color,size,strength}:{
-  position:[number,number,number];color:string;size:number;strength:number;
-}) {
-  const uniforms = useMemo(
-    () => ({ uColor:{value:new Color(color)},uStrength:{value:strength} }),
-    [color,strength]
-  );
-  return <sprite position={position} scale={[size,size,1]} renderOrder={5} raycast={() => []}>
-    <shaderMaterial
-      uniforms={uniforms}
-      vertexShader={`
-        varying vec2 vUv;
-        void main() {
-          vUv=uv;
-          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
-        }`}
-      fragmentShader={`
-        varying vec2 vUv;
-        uniform vec3 uColor;
-        uniform float uStrength;
-        void main() {
-          float r=length((vUv-0.5)*2.0);
-          float halo=exp(-5.5*r*r)*smoothstep(1.0,0.35,r);
-          gl_FragColor=vec4(uColor,halo*uStrength);
-        }`}
-      transparent depthTest={false} depthWrite={false}
-      toneMapped={false} blending={AdditiveBlending}
-    />
-  </sprite>;
 }
 
 // Authentic Bone & Skeletal Assembly from BodyParts3D
@@ -445,49 +392,13 @@ function BodySilhouette({ opacity = 0.12, visible = true }: { opacity: number; v
     copy.traverse((o) => {
       if (o instanceof Mesh) {
         o.visible = visible;
-        (o.material as ShaderMaterial).uniforms.uOpacity.value=opacity;
+        (o.material as MeshPhongMaterial).opacity=opacity;
       }
     });
     invalidate();
   }, [copy, visible, opacity, invalidate]);
-  useEffect(()=>()=>{copy.traverse(o=>{if(o instanceof Mesh)(o.material as ShaderMaterial).dispose();});},[copy]);
+  useEffect(()=>()=>{copy.traverse(o=>{if(o instanceof Mesh)(o.material as MeshPhongMaterial).dispose();});},[copy]);
   return visible ? <primitive object={copy} dispose={null} /> : null;
-}
-
-// 3D Radar Beacon on Selected Organ Surface
-function OrganRadarBeacon({
-  position,
-  highlighted = false,
-}: {
-  position: [number, number, number];
-  highlighted?: boolean;
-}) {
-  const groupRef = useRef<Group>(null);
-  const color = highlighted ? '#ffb65c' : '#53dcf7';
-
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    const t = state.clock.getElapsedTime();
-    const s = 1 + Math.sin(t * 5.0) * 0.18;
-    groupRef.current.scale.set(s, s, s);
-  });
-
-  return (
-    <group ref={groupRef} position={position}>
-      <mesh>
-        <sphereGeometry args={[0.022, 16, 16]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.0} roughness={0.1} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.038, 0.05, 32]} />
-        <meshBasicMaterial color={color} side={DoubleSide} transparent opacity={0.85} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.065, 0.072, 32]} />
-        <meshBasicMaterial color={color} side={DoubleSide} transparent opacity={0.4} />
-      </mesh>
-    </group>
-  );
 }
 
 // Smooth Camera Controller
@@ -540,10 +451,10 @@ export default function Anatomy({
   onOpenChatWithOrgan,
 }: AnatomyProps) {
   // Layer toggles
-  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [showVascular, setShowVascular] = useState(false);
   const [showSkin, setShowSkin] = useState(true);
-  const [opacity, setOpacity] = useState(0.22);
+  const [opacity, setOpacity] = useState(0.13);
   const [illuminated, setIlluminated] = useState(true);
   const [organSearch, setOrganSearch] = useState('');
   const [detailMode, setDetailMode] = useState(false);
@@ -623,10 +534,10 @@ export default function Anatomy({
   function restore() {
     setHidden(new Set());
     setIsolate(false);
-    setOpacity(0.22);
+    setOpacity(0.13);
     setIlluminated(true);
     setRotating(false);
-    setShowSkeleton(false);
+    setShowSkeleton(true);
     setShowVascular(false);
     setShowSkin(true);
     setView({ bounds: whole, direction: 'front', revision: Date.now() });
@@ -889,9 +800,9 @@ export default function Anatomy({
             {/* Reference-inspired medical studio lighting; realistic material detail remains visible. */}
             <ambientLight intensity={0.85} color="#b8d9e9" />
             <hemisphereLight args={['#badff8', '#152332', 0.7]} />
-            <directionalLight position={[4, 7, 5]} intensity={2.25} color="#fff1dc" />
-            <directionalLight position={[-4, 2, -4]} intensity={1.25} color="#36c9fa" />
-            <directionalLight position={[0, -5, 2]} intensity={0.4} color="#ffb366" />
+            <directionalLight position={[4, 7, 5]} intensity={1.35} color="#fff5ee" />
+            <directionalLight position={[-4, 2, -4]} intensity={0.55} color="#d9e6f1" />
+            <directionalLight position={[0, -5, 2]} intensity={0.3} color="#ffffff" />
 
             <Suspense
               fallback={
@@ -918,7 +829,7 @@ export default function Anatomy({
               {/* 2. Authentic Skeletal Thoracic Assembly from BodyParts3D */}
               <SkeletalAssembly
                 visible={showSkeleton && !isolate}
-                opacity={illuminated ? 0.4 : 0.88}
+                opacity={illuminated ? 0.16 : 0.65}
                 onSelect={(name) => chooseOrgan('heart')} // Framing chest on rib click
               />
 
@@ -946,31 +857,6 @@ export default function Anatomy({
                 />
               ))}
 
-
-              {/* Gentle optical auras anchored to each actual organ bounds. */}
-              {(illuminated || selected || highlighted.length > 0) &&
-                organKeys.map((k) => {
-                  if (hidden.has(k) || (isolate && selected !== k)) return null;
-                  const focused = selected === k;
-                  const flagged = highlighted.includes(k);
-                  if (!focused && !flagged) return null;
-                  const bounds = organBounds[k];
-                  const position = bounds?.center ?? ORGAN_DATA[k]?.center;
-                  if (!position) return null;
-                  const extent = bounds ? Math.max(...bounds.size) : 0.4;
-                  return <OrganAura key={k + '-aura'} position={position}
-                    color={focused || flagged ? '#ff9b35' : '#1bc0eb'}
-                    size={Math.min(1.1,Math.max(0.3,extent*1.2))}
-                    strength={focused ? 0.22 : flagged ? 0.12 : 0.08} />;
-                })}
-
-              {/* 5. 3D Radar Beacon on Selected Organ Surface */}
-              {selected && ORGAN_DATA[selected] && (
-                <OrganRadarBeacon
-                  position={ORGAN_DATA[selected].center}
-                  highlighted={highlighted.includes(selected)}
-                />
-              )}
 
               {/* 6. Labels are rendered outside the canvas to avoid occlusion. */}
             </Suspense>
