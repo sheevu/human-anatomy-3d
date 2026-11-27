@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
-import { DoubleSide, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
+import { DoubleSide, Mesh, MeshPhongMaterial, PerspectiveCamera, Vector3, Plane } from 'three';
 import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
 import { fitDistance, systems, type AtlasManifest, type AtlasPart } from './atlas';
 import './detailed-atlas.css';
@@ -11,6 +11,22 @@ type Bounds = { center: [number, number, number]; size: [number, number, number]
 const SYSTEM_KEYS = Object.keys(systems).filter((key) => key !== 'organs') as AtlasSystem[];
 const FULL_BODY: Bounds = { center: [0, 0, 0], size: [2.4, 4.8, 1.35] };
 const normalize = (value: string) => value.toLowerCase().replace(/\.\d{3}$/g, '').replace(/[^a-z0-9]/g, '');
+// The source exporter emits positions and normals but no tissue materials.
+function tissueColor(system:AtlasSystem, name:string) {
+  const n=name.toLowerCase();
+  if(/artery|arterial|aorta|arteries/.test(n))return '#a34b48';
+  if(/vein|venous|vena cava/.test(n))return '#657b98';
+  if(/cartilage|ligament|tendon|fascia/.test(n))return '#d2c7b5';
+  if(/gallbladder|gall bladder|bile duct/.test(n))return '#78865a';
+  if(/liver|hepatic/.test(n))return '#925143';
+  if(/heart|cardiac|myocard|atrium|ventricle/.test(n))return '#a84e4b';
+  if(/lung|bronch|trachea/.test(n))return '#c88f90';
+  if(/pancrea/.test(n))return '#d1ae78';
+  if(/stomach|gastric|oesoph|esoph/.test(n))return '#c78e83';
+  if(/intestin|colon|duoden|jejun|ileum|rectum/.test(n))return '#bd9584';
+  if(/kidney|renal|spleen/.test(n))return '#a05a54';
+  return ({skeleton:'#d8cbb1',muscles:'#a15b54',joints:'#c9c8b9',vessels:'#a34b48',lymphatic:'#859568',nervous:'#d0b584',viscera:'#b78d80',surface:'#c7aaa0'} as Record<string,string>)[system] ?? '#bda79c';
+}
 const finite = (value: number) => Number.isFinite(value) && value > 0 ? value : 0.1;
 
 function AtlasCamera({ target, controls }: {
@@ -35,7 +51,7 @@ function AtlasCamera({ target, controls }: {
 }
 
 function AtlasSystemModel({
-  system, parts, chosen, opacity, isolate, selectPart,
+  system, parts, chosen, opacity, isolate, selectPart, sectionAxis, sectionOffset,
 }: {
   system: AtlasSystem;
   parts: AtlasPart[];
@@ -43,8 +59,12 @@ function AtlasSystemModel({
   opacity: number;
   isolate: boolean;
   selectPart: (part: AtlasPart) => void;
+  sectionAxis: 'off'|'x'|'y'|'z';
+  sectionOffset: number;
 }) {
   const { scene } = useGLTF('/models/atlas/' + system + '.glb');
+  const invalidate=useThree(s=>s.invalidate);
+  const planes=useMemo(()=>sectionAxis==='off'?[]:[new Plane(new Vector3(sectionAxis==='x'?1:0,sectionAxis==='y'?1:0,sectionAxis==='z'?1:0),-sectionOffset)],[sectionAxis,sectionOffset]);
   const byIdentifier = useMemo(() => {
     const map = new Map<string, AtlasPart>();
     for (const part of parts) {
@@ -76,12 +96,7 @@ function AtlasSystemModel({
     const cloned = scene.clone(true);
     cloned.traverse((object) => {
       if (!(object instanceof Mesh)) return;
-      const source = object.material instanceof MeshStandardMaterial ? object.material : null;
-      const material = source ? source.clone() : new MeshStandardMaterial({ side: DoubleSide });
-      material.side = DoubleSide;
-      material.metalness = 0.04;
-      material.roughness = 0.48;
-      if (!source) material.color.set(systems[system].color);
+      const material = new MeshPhongMaterial({side:DoubleSide,color:tissueColor(system,''),shininess:20,specular:'#aaa19b',toneMapped:false});
       object.material = material;
     });
     return cloned;
@@ -90,22 +105,26 @@ function AtlasSystemModel({
   useEffect(() => {
     copy.traverse((object) => {
       if (!(object instanceof Mesh)) return;
-      const material = object.material as MeshStandardMaterial;
+      const material = object.material as MeshPhongMaterial;
       const part = resolve(object);
       const selected = !!chosen && part?.id === chosen;
       object.visible = !(isolate && chosen && !selected);
       material.opacity = selected ? 1 : opacity;
       material.transparent = !selected && opacity < 1;
       material.depthWrite = selected || opacity >= 0.99;
-      material.emissive.set(selected ? '#f9a64e' : '#0d2534');
-      material.emissiveIntensity = selected ? 0.66 : 0.10;
+      const color=tissueColor(system,part?.name ?? '');
+      material.color.set(color);
+      material.emissive.set(color);
+      material.emissiveIntensity=selected?0.30:0.12;
+      material.clippingPlanes=planes;
       material.needsUpdate = true;
     });
-  }, [copy, resolve, chosen, opacity, isolate]);
+    invalidate();
+  }, [copy, resolve, chosen, opacity, isolate, system, planes, invalidate]);
 
   useEffect(() => () => {
     copy.traverse((object) => {
-      if (object instanceof Mesh && object.material instanceof MeshStandardMaterial) {
+      if (object instanceof Mesh && object.material instanceof MeshPhongMaterial) {
         object.material.dispose();
       }
     });
@@ -129,6 +148,8 @@ export default function DetailedAtlasExplorer({ hi = false }: { hi?: boolean }) 
   const [opacity, setOpacity] = useState(1);
   const [isolate, setIsolate] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [sectionAxis,setSectionAxis]=useState<'off'|'x'|'y'|'z'>('off');
+  const [sectionOffset,setSectionOffset]=useState(0);
   const orbit = useRef<OrbitControlsType | null>(null);
 
   useEffect(() => {
@@ -159,6 +180,7 @@ export default function DetailedAtlasExplorer({ hi = false }: { hi?: boolean }) 
     setSystem(next);
     setSelected(null);
     setQuery('');
+    setSectionAxis('off');
     setIsolate(false);
   };
   const choosePart = (part: AtlasPart) => {
@@ -187,17 +209,17 @@ export default function DetailedAtlasExplorer({ hi = false }: { hi?: boolean }) 
           {loadError ? <div className="detailed-atlas-loading" role="alert">{loadError}</div> :
             <Canvas dpr={[1, 1.4]} frameloop="demand"
               camera={{ position: [0, 0.8, 6], fov: 37, near: 0.005, far: 100 }}
-              gl={{ alpha: false, antialias: true, powerPreference: 'high-performance' }}>
-              <color attach="background" args={['#071625']} />
+              gl={{ alpha: false, antialias: true, powerPreference: 'high-performance' }} onCreated={({gl})=>{gl.localClippingEnabled=true;}}>
+              <color attach="background" args={['#20272d']} />
               <ambientLight intensity={0.9} />
-              <hemisphereLight args={['#8bd4ed', '#1e1724', 0.8]} />
-              <directionalLight position={[3, 5, 7]} intensity={2.1} color="#ffe7cf" />
-              <directionalLight position={[-4, 1, -5]} intensity={1.2} color="#5bd3f5" />
+              <hemisphereLight args={['#f1eee9', '#6c7177', 0.65]} />
+              <directionalLight position={[3, 5, 7]} intensity={1.3} color="#fff5ee" />
+              <directionalLight position={[-4, 1, -5]} intensity={0.5} color="#e4e9ef" />
               <Suspense fallback={<Html center><div className="detailed-atlas-loading">
                 {hi ? 'मॉडल लोड हो रहा है…' : 'Loading detailed anatomy…'}
               </div></Html>}>
                 <AtlasSystemModel system={system} parts={parts} chosen={selected?.id ?? null}
-                  opacity={opacity} isolate={isolate} selectPart={choosePart} />
+                  opacity={opacity} isolate={isolate} selectPart={choosePart} sectionAxis={sectionAxis} sectionOffset={sectionOffset} />
               </Suspense>
               <OrbitControls ref={orbit} makeDefault enableDamping dampingFactor={0.08}
                 enablePan minDistance={0.06} maxDistance={40} />
@@ -230,6 +252,13 @@ export default function DetailedAtlasExplorer({ hi = false }: { hi?: boolean }) 
             <label htmlFor="detailed-opacity">{hi ? 'पारदर्शिता' : 'Layer opacity'} · {Math.round(opacity * 100)}%</label>
             <input id="detailed-opacity" type="range" min="0.15" max="1" step="0.05"
               value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} />
+          </div>
+          <div className="detailed-atlas-opacity">
+            <label htmlFor="atlas-section">{hi?'काट का तल':'Section plane'}</label>
+            <select id="atlas-section" value={sectionAxis} onChange={e=>{setSectionAxis(e.target.value as 'off'|'x'|'y'|'z');setSectionOffset(0);}}>
+              <option value="off">Off</option><option value="x">Sagittal</option><option value="y">Transverse</option><option value="z">Coronal</option>
+            </select>
+            {sectionAxis!=='off'&&<input aria-label="Section position" type="range" min={sectionAxis==='y'?-2.5:-1.3} max={sectionAxis==='y'?2.5:1.3} step="0.02" value={sectionOffset} onChange={e=>setSectionOffset(+e.target.value)}/>}
           </div>
           <div className="detailed-atlas-results" role="list" aria-label="Anatomical structures">
             {results.map((part) => <button role="listitem" type="button" key={part.id}
