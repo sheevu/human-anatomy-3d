@@ -236,7 +236,7 @@ function OrganGeometry({
         } else {
           material.color.set(color);
           material.emissive.set(color);
-          material.emissiveIntensity = illuminated ? 0.65 : 0.08;
+          material.emissiveIntensity = illuminated ? 0.28 : 0.02;
           material.roughness = 0.42;
         }
         material.opacity = opacity;
@@ -555,11 +555,12 @@ export default function Anatomy({
   onOpenChatWithOrgan,
 }: AnatomyProps) {
   // Layer toggles
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const [showVascular, setShowVascular] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [showVascular, setShowVascular] = useState(false);
   const [showSkin, setShowSkin] = useState(true);
   const [opacity, setOpacity] = useState(0.075);
   const [illuminated, setIlluminated] = useState(true);
+  const [organSearch, setOrganSearch] = useState('');
 
   // States
   const [isolate, setIsolate] = useState(false);
@@ -591,7 +592,7 @@ export default function Anatomy({
       if (ORGAN_DATA[selected]) {
         const coord = ORGAN_DATA[selected].center;
         setView({
-          bounds: { center: coord, size: [0.7, 0.7, 0.7] },
+          bounds: organBounds[selected] ?? { center: coord, size: [0.7, 0.7, 0.7] },
           direction: 'front',
           revision: Date.now(),
         });
@@ -614,7 +615,7 @@ export default function Anatomy({
     if (ORGAN_DATA[id]) {
       const coord = ORGAN_DATA[id].center;
       setView({
-        bounds: { center: coord, size: [0.7, 0.7, 0.7] },
+        bounds: organBounds[id] ?? { center: coord, size: [0.7, 0.7, 0.7] },
         direction: 'front',
         revision: Date.now(),
       });
@@ -639,8 +640,8 @@ export default function Anatomy({
     setOpacity(0.075);
     setIlluminated(true);
     setRotating(false);
-    setShowSkeleton(true);
-    setShowVascular(true);
+    setShowSkeleton(false);
+    setShowVascular(false);
     setShowSkin(true);
     setView({ bounds: whole, direction: 'front', revision: Date.now() });
   }
@@ -854,7 +855,7 @@ export default function Anatomy({
 
       {/* 3D Canvas Stage */}
       <div
-        className="atlas-stage"
+        className="atlas-stage atlas-stage-v3"
         style={{
           position: 'relative',
           width: '100%',
@@ -876,8 +877,8 @@ export default function Anatomy({
         >
           <Canvas
             camera={{ position: [0, 0, 9], fov: 36, near: 0.005, far: 100 }}
-            dpr={[1, 1.5]}
-            frameloop="demand"
+            dpr={[1, 1.25]}
+            frameloop={rotating ? 'always' : 'demand'}
             gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
             onPointerMissed={() => {
               onSelect(null);
@@ -951,7 +952,7 @@ export default function Anatomy({
                   if (hidden.has(k) || (isolate && selected !== k)) return null;
                   const focused = selected === k;
                   const flagged = highlighted.includes(k);
-                  if (!illuminated && !focused && !flagged) return null;
+                  if (!focused && !flagged) return null;
                   const bounds = organBounds[k];
                   const position = bounds?.center ?? ORGAN_DATA[k]?.center;
                   if (!position) return null;
@@ -972,7 +973,7 @@ export default function Anatomy({
 
               {/* 6. 3D Floating Name Label */}
               {labels && selected && ORGAN_DATA[selected] && !hidden.has(selected) && (
-                <Html position={ORGAN_DATA[selected].center} center>
+                <Html position={organBounds[selected]?.center ?? ORGAN_DATA[selected].center} center>
                   <div
                     style={{
                       padding: '4px 10px',
@@ -1191,9 +1192,9 @@ export default function Anatomy({
         </div>
       </div>
 
-      {/* Organ Selection Pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        {organKeys.map((k) => {
+      <div className="atlas-search-v3"><input aria-label={hi ? 'अंग खोजें' : 'Search anatomy'} placeholder={hi ? 'अंग खोजें…' : 'Search organs…'} value={organSearch} onChange={(e) => setOrganSearch(e.target.value)} /><button type="button" aria-pressed={isolate} disabled={!selected} onClick={() => setIsolate(v => !v)}>{isolate ? (hi ? 'पूरा शरीर' : 'Show body') : (hi ? 'अलग देखें' : 'Isolate organ')}</button></div>
+      <div className="atlas-organ-list-v3" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        {organKeys.filter(k => (k + ' ' + organs[k].en + ' ' + organs[k].hi).toLowerCase().includes(organSearch.trim().toLowerCase())).map((k) => {
           const isSel = selected === k;
           const isHigh = highlighted.includes(k);
           return (
@@ -1201,6 +1202,7 @@ export default function Anatomy({
               key={k}
               type="button"
               onClick={() => chooseOrgan(k)}
+              aria-pressed={isSel}
               style={{
                 display: 'flex',
                 alignItems: 'center',
