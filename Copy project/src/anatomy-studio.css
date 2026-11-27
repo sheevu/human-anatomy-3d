@@ -128,3 +128,12 @@
 .anatomy .atlas-organ-list-v3 button[aria-pressed=true] {background:#ffc27b!important;color:#35200b!important;border-color:#ffc27b!important;}
 .anatomy .atlas-stage-v3 button:focus-visible,.anatomy .atlas-search-v3 input:focus-visible,.anatomy .atlas-search-v3 button:focus-visible {outline:2px solid #56d9f8;outline-offset:2px;}
 @media(max-width:640px){.anatomy .atlas-stage-v3 {height:clamp(360px,64dvh,640px)!important;min-height:0;}.anatomy .atlas-organ-list-v3 {flex-wrap:nowrap!important;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x proximity;}.anatomy .atlas-organ-list-v3 button {flex-shrink:0;scroll-snap-align:start;}.anatomy .atlas-stage-v3 .view-presets button {min-height:44px;}.anatomy-expanded .atlas-stage-v3 {height:72dvh!important;}}
+
+/* V4 anatomical workspace selector */
+.anatomy .atlas-workspace-switch{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 0}
+.anatomy .atlas-workspace-switch button{min-height:44px;padding:10px 16px;background:#143246;color:#d0edf9;border:1px solid #376781;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
+.anatomy .atlas-workspace-switch button[aria-pressed=true]{background:#215e72;border-color:#6bd9f7;color:#fff}
+.anatomy .atlas-workspace-switch span{color:#8dbbcf;font-size:11px}
+.anatomy .atlas-workspace-switch button:focus-visible{outline:2px solid #7be0fc;outline-offset:2px}
+.anatomy-detail-active .atlas-search-v3,.anatomy-detail-active .atlas-organ-list-v3{display:none!important}
+@media(max-width:640px){.anatomy .atlas-workspace-switch{display:grid;grid-template-columns:1fr 1fr}.anatomy .atlas-workspace-switch span{grid-column:1/-1}.anatomy .atlas-workspace-switch button{padding:10px 6px}}
