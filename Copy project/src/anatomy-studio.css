@@ -137,3 +137,26 @@
 .anatomy .atlas-workspace-switch button:focus-visible{outline:2px solid #7be0fc;outline-offset:2px}
 .anatomy-detail-active .atlas-search-v3,.anatomy-detail-active .atlas-organ-list-v3{display:none!important}
 @media(max-width:640px){.anatomy .atlas-workspace-switch{display:grid;grid-template-columns:1fr 1fr}.anatomy .atlas-workspace-switch span{grid-column:1/-1}.anatomy .atlas-workspace-switch button{padding:10px 6px}}
+
+/* V5: reference-inspired anatomy labels never cover the 3D model. */
+.anatomy .atlas-reference-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:stretch;min-width:0}
+.anatomy .atlas-reference-layout:has(.atlas-label-rail){grid-template-columns:minmax(132px,17%) minmax(0,1fr) minmax(132px,17%)}
+.anatomy .atlas-label-rail{display:flex;flex-direction:column;justify-content:center;gap:14px;min-width:0}
+.anatomy .atlas-label-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0;min-height:64px;text-align:left;padding:12px 10px;background:linear-gradient(120deg,#132c40,#0b1e2d);border:1px solid #2d5369;border-left:3px solid #69d9ff;border-radius:9px;cursor:pointer;color:#e5f5ff}
+.anatomy .atlas-label-card strong{font-size:13px;line-height:1.2}
+.anatomy .atlas-label-card span{font-size:11px;line-height:1.45;color:#c1dbe6;overflow-wrap:anywhere}
+.anatomy .atlas-label-card:hover,.anatomy .atlas-label-card[aria-pressed=true]{background:#1d3d52;border-top-color:#72d8f5;border-bottom-color:#72d8f5;border-right-color:#72d8f5}
+.anatomy .atlas-label-card:focus-visible{outline:2px solid #80dfff;outline-offset:2px}
+.anatomy .atlas-reference-layout .atlas-stage{background:radial-gradient(ellipse at 50% 42%,#234d64 0%,#102c40 48%,#081725 100%)!important}
+@media(max-width:850px){
+ .anatomy .atlas-reference-layout:has(.atlas-label-rail){grid-template-columns:repeat(2,minmax(0,1fr))}
+ .anatomy .atlas-reference-layout .atlas-stage{grid-column:1/-1;grid-row:1}
+ .anatomy .atlas-label-rail{gap:6px;justify-content:flex-start}
+ .anatomy .atlas-label-card{padding:9px;min-height:66px}
+}
+@media(max-width:480px){
+ .anatomy .atlas-reference-layout .atlas-stage{height:clamp(360px,64dvh,620px)!important}
+ .anatomy .atlas-label-card strong{font-size:12px}
+ .anatomy .atlas-label-card span{font-size:10px}
+ .anatomy .atlas-illumination-switch{max-width:calc(100% - 65px)}
+}
