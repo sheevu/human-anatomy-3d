@@ -20,6 +20,8 @@ import {
   Group,
   AdditiveBlending,
   Color,
+  ShaderMaterial,
+  FrontSide,
 } from 'three';
 import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
 import {
@@ -63,6 +65,33 @@ type View = { bounds: Bounds; direction: 'front' | 'back' | 'side' | 'chest' | '
 
 const whole: Bounds = { center: [0, 0, 0], size: [2.5, 4.8, 0.8] };
 const organKeys = Object.keys(organs) as Organ[];
+// Educational palette: colors identify anatomy, never clinical severity.
+const atlasColors: Record<string,string> = { brain:'#c58bf4', heart:'#f04462', lungs:'#32c9f5', liver:'#f6a044', stomach:'#37d6c4', pancreas:'#ffd36b', kidneys:'#d86d9c', intestines:'#9484f5' };
+const atlasNames: Record<string,[string,string]> = {brain:['Brain','मस्तिष्क'],heart:['Heart','हृदय'],lungs:['Lungs','फेफड़े'],liver:['Liver','यकृत'],stomach:['Stomach','आमाशय'],pancreas:['Pancreas','अग्न्याशय'],kidneys:['Kidneys','गुर्दे'],intestines:['Intestines','आंतें']};
+const atlasDescriptions: Record<string,[string,string]> = {brain:['Coordinates movement and thought.','विचार और गति का समन्वय।'],heart:['Pumps blood through the body.','शरीर में रक्त पंप करता है।'],lungs:['Exchange oxygen and carbon dioxide.','ऑक्सीजन और कार्बन डाइऑक्साइड का आदान-प्रदान।'],liver:['Processes nutrients and produces bile.','पोषक तत्वों का प्रसंस्करण और पित्त निर्माण।'],stomach:['Mixes and breaks down food.','भोजन को मिलाता और तोड़ता है।'],pancreas:['Produces digestive enzymes and hormones.','पाचक एंजाइम और हार्मोन बनाता है।'],kidneys:['Filter blood and regulate fluid balance.','रक्त छानते और तरल संतुलन रखते हैं।'],intestines:['Absorb nutrients and water.','पोषक तत्व और पानी अवशोषित करती हैं।']};
+function anatomyMaterial(color:string, shell=false) {
+  return new ShaderMaterial({
+    uniforms:{uColor:{value:new Color(color)},uFocus:{value:0},uLight:{value:1},uOpacity:{value:1},uShell:{value:shell?1:0}},
+    vertexShader:`varying vec3 vNormal; varying vec3 vView;
+      void main(){vec4 p=modelViewMatrix*vec4(position,1.0);vNormal=normalize(normalMatrix*normal);vView=-p.xyz;gl_Position=projectionMatrix*p;}`,
+    fragmentShader:`uniform vec3 uColor;uniform float uFocus,uLight,uOpacity,uShell;
+      varying vec3 vNormal;varying vec3 vView;
+      void main(){vec3 n=normalize(vNormal);vec3 v=normalize(vView);if(!gl_FrontFacing)n=-n;
+        float facing=clamp(abs(dot(n,v)),0.0,1.0);
+        float rim=pow(1.0-facing,2.1);
+        float key=max(dot(n,normalize(vec3(-0.45,0.65,0.8))),0.0);
+        float fill=max(dot(n,normalize(vec3(0.7,-0.3,0.6))),0.0);
+        float spec=pow(max(dot(n,normalize(normalize(vec3(-0.45,0.65,0.8))+v)),0.0),30.0);
+        vec3 rgb=uColor*(0.45+0.65*key+0.22*fill+0.20*uLight)+vec3(0.25,0.65,0.85)*rim*(0.14+0.26*uLight)+vec3(0.8)*spec*0.32;
+        rgb+=vec3(0.75,0.40,0.12)*rim*uFocus*0.65;
+        float a=uOpacity;
+        if(uShell>0.5){rgb=uColor*(0.4+rim*1.4)+vec3(0.15,0.55,0.85)*rim;a=uOpacity*(0.18+rim*1.5);}
+        gl_FragColor=vec4(rgb,clamp(a,0.0,1.0));
+        #include <colorspace_fragment>
+      }`,
+    side:shell?FrontSide:DoubleSide,transparent:shell,depthWrite:!shell,toneMapped:false
+  });
+}
 
 // Authentic anatomical data mapped from Z-Anatomy TA2.csv, FMA, and Ayurveda
 export const ORGAN_DATA: Record<
@@ -198,17 +227,13 @@ function OrganGeometry({
 }) {
   const { scene } = useGLTF(url);
   const meshRef = useRef<Group>(null);
+  const invalidate = useThree(s => s.invalidate);
 
   const copy = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((o) => {
       if (o instanceof Mesh) {
-        o.material = new MeshStandardMaterial({
-          color,
-          roughness: 0.48,
-          metalness: 0.04,
-          side: DoubleSide,
-        });
+        o.material = anatomyMaterial(color);
         o.userData.atlasId = organId;
       }
     });
@@ -220,33 +245,18 @@ function OrganGeometry({
       if (o instanceof Mesh) {
         const id = o.userData.atlasId || o.name;
         const active = id === selected;
-        const material = o.material as MeshStandardMaterial;
+        const material = o.material as ShaderMaterial;
         o.visible = !hidden.has(id) && (!isolate || active);
-
-        // Anatomical highlight means focus or relevance, not confirmed organ damage.
-        if (active) {
-          material.color.set('#ffcc86');
-          material.emissive.set('#ff8c25');
-          material.emissiveIntensity = 1.35;
-          material.roughness = 0.33;
-        } else if (highlighted) {
-          material.color.set('#ffc27b');
-          material.emissive.set('#f78e30');
-          material.emissiveIntensity = 1.05;
-          material.roughness = 0.38;
-        } else {
-          material.color.set(color);
-          material.emissive.set(color);
-          material.emissiveIntensity = illuminated ? 0.28 : 0.02;
-          material.roughness = 0.42;
-        }
-        material.opacity = opacity;
+        material.uniforms.uColor.value.set(color);
+        material.uniforms.uFocus.value = active ? 1 : highlighted ? 0.65 : 0;
+        material.uniforms.uLight.value = illuminated ? 1 : 0;
+        material.uniforms.uOpacity.value = opacity;
         material.transparent = opacity < 1;
         material.depthWrite = opacity >= 0.95;
-        material.needsUpdate = true;
       }
     });
-  }, [copy, selected, color, opacity, hidden, isolate, highlighted, illuminated]);
+    invalidate();
+  }, [copy, selected, color, opacity, hidden, isolate, highlighted, illuminated, invalidate]);
 
   useEffect(() => {
     if (organId && onBounds) {
@@ -258,7 +268,7 @@ function OrganGeometry({
     }
     return () => {
       copy.traverse((o) => {
-        if (o instanceof Mesh) (o.material as MeshStandardMaterial).dispose();
+        if (o instanceof Mesh) (o.material as ShaderMaterial).dispose();
       });
     };
   }, [copy, organId, onBounds]);
@@ -438,36 +448,29 @@ function VascularNetwork({
 // Transparent Medical Body Skin Surface
 function BodySilhouette({ opacity = 0.12, visible = true }: { opacity: number; visible: boolean }) {
   const { scene } = useGLTF('/models/body.glb');
+  const invalidate = useThree(s => s.invalidate);
   const copy = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((o) => {
       if (o instanceof Mesh) {
-        o.material = new MeshStandardMaterial({
-          color: '#74b8ce',
-          roughness: 0.5,
-          metalness: 0.03,
-          transparent: true,
-          depthWrite: false,
-          opacity: opacity,
-          side: DoubleSide,
-        });
+        o.material = anatomyMaterial('#77cfff',true);
+        o.renderOrder=2;
+        o.raycast=()=>{};
       }
     });
     return clone;
-  }, [scene, opacity]);
-
+  }, [scene]);
   useEffect(() => {
     copy.traverse((o) => {
       if (o instanceof Mesh) {
         o.visible = visible;
-        (o.material as MeshStandardMaterial).opacity = opacity;
-        (o.material as MeshStandardMaterial).needsUpdate = true;
+        (o.material as ShaderMaterial).uniforms.uOpacity.value=opacity;
       }
     });
-  }, [copy, visible, opacity]);
-
-  if (!visible) return null;
-  return <primitive object={copy} dispose={null} />;
+    invalidate();
+  }, [copy, visible, opacity, invalidate]);
+  useEffect(()=>()=>{copy.traverse(o=>{if(o instanceof Mesh)(o.material as ShaderMaterial).dispose();});},[copy]);
+  return visible ? <primitive object={copy} dispose={null} /> : null;
 }
 
 // 3D Radar Beacon on Selected Organ Surface
@@ -559,7 +562,7 @@ export default function Anatomy({
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [showVascular, setShowVascular] = useState(false);
   const [showSkin, setShowSkin] = useState(true);
-  const [opacity, setOpacity] = useState(0.075);
+  const [opacity, setOpacity] = useState(0.22);
   const [illuminated, setIlluminated] = useState(true);
   const [organSearch, setOrganSearch] = useState('');
   const [detailMode, setDetailMode] = useState(false);
@@ -639,7 +642,7 @@ export default function Anatomy({
   function restore() {
     setHidden(new Set());
     setIsolate(false);
-    setOpacity(0.075);
+    setOpacity(0.22);
     setIlluminated(true);
     setRotating(false);
     setShowSkeleton(false);
@@ -866,7 +869,11 @@ export default function Anatomy({
       </div>
       {detailMode ? <DetailedAtlasExplorer hi={hi} /> : (
       <>
-      {/* 3D Canvas Stage */}
+      {/* Dedicated label rails sit outside the interactive canvas. */}
+      <div className="atlas-reference-layout">
+      {labels && <aside className="atlas-label-rail" aria-label="Anatomy labels">
+        {['brain','lungs','liver','kidneys'].map(k=><button key={k} type="button" className="atlas-label-card" aria-pressed={selected===k} onClick={()=>chooseOrgan(k)} style={{borderLeftColor:atlasColors[k]}}><strong style={{color:atlasColors[k]}}>{atlasNames[k][hi?1:0]}</strong><span>{atlasDescriptions[k][hi?1:0]}</span></button>)}
+      </aside>}
       <div
         className="atlas-stage atlas-stage-v3"
         style={{
@@ -947,7 +954,7 @@ export default function Anatomy({
                   key={k}
                   url={'/models/' + k + '.glb'}
                   organId={k}
-                  color={organs[k].color}
+                  color={atlasColors[k] ?? organs[k].color}
                   selected={selected}
                   hidden={hidden}
                   isolate={isolate}
@@ -984,27 +991,7 @@ export default function Anatomy({
                 />
               )}
 
-              {/* 6. 3D Floating Name Label */}
-              {labels && selected && ORGAN_DATA[selected] && !hidden.has(selected) && (
-                <Html position={organBounds[selected]?.center ?? ORGAN_DATA[selected].center} center>
-                  <div
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '20px',
-                      backgroundColor: isAbnormal ? 'rgba(116, 67, 16, 0.95)' : 'rgba(8, 51, 68, 0.95)',
-                      border: isAbnormal ? '1px solid #ef4444' : '1px solid #34d399',
-                      color: '#ffffff',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      whiteSpace: 'nowrap',
-                      pointerEvents: 'none',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                    }}
-                  >
-                    {organs[selected as Organ]?.[hi ? 'hi' : 'en']}
-                  </div>
-                </Html>
-              )}
+              {/* 6. Labels are rendered outside the canvas to avoid occlusion. */}
             </Suspense>
 
             <OrbitControls
@@ -1203,6 +1190,10 @@ export default function Anatomy({
             <RotateCcw size={16} />
           </button>
         </div>
+      </div>
+      {labels && <aside className="atlas-label-rail atlas-label-rail-right" aria-label="More anatomy labels">
+        {['heart','stomach','pancreas','intestines'].map(k=><button key={k} type="button" className="atlas-label-card" aria-pressed={selected===k} onClick={()=>chooseOrgan(k)} style={{borderLeftColor:atlasColors[k]}}><strong style={{color:atlasColors[k]}}>{atlasNames[k][hi?1:0]}</strong><span>{atlasDescriptions[k][hi?1:0]}</span></button>)}
+      </aside>}
       </div>
       </>
       )}
