@@ -117,3 +117,14 @@
  .anatomy .atlas-illumination-switch {top:9px;left:9px;font-size:10px;padding:8px}
  .anatomy .atlas-educational-disclaimer {bottom:68px;font-size:8px;max-width:65%}
 }
+
+/* V3: viewer-first responsive atlas */
+.anatomy .atlas-stage-v3 {height:clamp(480px,68dvh,820px)!important; min-width:0;}
+.anatomy .atlas-search-v3 {display:flex;gap:8px;align-items:center;margin:12px 0 8px;}
+.anatomy .atlas-search-v3 input {flex:1;min-width:0;min-height:44px;border:1px solid #42768b;border-radius:10px;padding:10px 12px;font-size:16px;background:#102638;color:#e8f6ff;}
+.anatomy .atlas-search-v3 button {min-height:44px;padding:8px 12px;border-radius:10px;background:#153e53;color:#e8f6ff;border:1px solid #42768b;}
+.anatomy .atlas-search-v3 button:disabled {opacity:.5;}
+.anatomy .atlas-organ-list-v3 button {min-height:44px;font-size:13px!important;}
+.anatomy .atlas-organ-list-v3 button[aria-pressed=true] {background:#ffc27b!important;color:#35200b!important;border-color:#ffc27b!important;}
+.anatomy .atlas-stage-v3 button:focus-visible,.anatomy .atlas-search-v3 input:focus-visible,.anatomy .atlas-search-v3 button:focus-visible {outline:2px solid #56d9f8;outline-offset:2px;}
+@media(max-width:640px){.anatomy .atlas-stage-v3 {height:clamp(360px,64dvh,640px)!important;min-height:0;}.anatomy .atlas-organ-list-v3 {flex-wrap:nowrap!important;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x proximity;}.anatomy .atlas-organ-list-v3 button {flex-shrink:0;scroll-snap-align:start;}.anatomy .atlas-stage-v3 .view-presets button {min-height:44px;}.anatomy-expanded .atlas-stage-v3 {height:72dvh!important;}}
