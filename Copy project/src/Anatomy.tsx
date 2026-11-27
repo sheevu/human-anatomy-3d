@@ -55,6 +55,7 @@ import {
 import { organs } from './medical.js';
 import { systems, fitDistance, type AtlasPart, type AtlasManifest } from './atlas';
 import { DeepAnatomyModal } from './DeepAnatomyModal';
+import DetailedAtlasExplorer from './DetailedAtlasExplorer';
 
 type Organ = keyof typeof organs;
 type Bounds = { center: [number, number, number]; size: [number, number, number] };
@@ -561,6 +562,7 @@ export default function Anatomy({
   const [opacity, setOpacity] = useState(0.075);
   const [illuminated, setIlluminated] = useState(true);
   const [organSearch, setOrganSearch] = useState('');
+  const [detailMode, setDetailMode] = useState(false);
 
   // States
   const [isolate, setIsolate] = useState(false);
@@ -657,7 +659,7 @@ export default function Anatomy({
   return (
     <div
       ref={root}
-      className={'anatomy ' + (large ? 'anatomy-large ' : '') + (expanded ? 'anatomy-expanded' : '')}
+      className={'anatomy ' + (large ? 'anatomy-large ' : '') + (expanded ? 'anatomy-expanded ' : '') + (detailMode ? 'anatomy-detail-active' : '')}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -853,6 +855,17 @@ export default function Anatomy({
         </div>
       </div>
 
+      <div className="atlas-workspace-switch" role="group" aria-label={hi ? '3D दृश्य' : 'Anatomy visualization mode'}>
+        <button type="button" aria-pressed={!detailMode} onClick={() => setDetailMode(false)}>
+          {hi ? 'शरीर का पूरा दृश्य' : 'Whole body'}
+        </button>
+        <button type="button" aria-pressed={detailMode} onClick={() => setDetailMode(true)}>
+          {hi ? 'विस्तृत 3D संरचनाएं' : 'Detailed 3D atlas'}
+        </button>
+        <span>{hi ? 'हर संरचना अलग से देखें' : 'Explore real anatomical structures individually'}</span>
+      </div>
+      {detailMode ? <DetailedAtlasExplorer hi={hi} /> : (
+      <>
       {/* 3D Canvas Stage */}
       <div
         className="atlas-stage atlas-stage-v3"
@@ -1191,6 +1204,8 @@ export default function Anatomy({
           </button>
         </div>
       </div>
+      </>
+      )}
 
       <div className="atlas-search-v3"><input aria-label={hi ? 'अंग खोजें' : 'Search anatomy'} placeholder={hi ? 'अंग खोजें…' : 'Search organs…'} value={organSearch} onChange={(e) => setOrganSearch(e.target.value)} /><button type="button" aria-pressed={isolate} disabled={!selected} onClick={() => setIsolate(v => !v)}>{isolate ? (hi ? 'पूरा शरीर' : 'Show body') : (hi ? 'अलग देखें' : 'Isolate organ')}</button></div>
       <div className="atlas-organ-list-v3" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
