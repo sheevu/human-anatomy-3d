@@ -273,26 +273,7 @@ function OrganGeometry({
     };
   }, [copy, organId, onBounds]);
 
-  // Physiological Life Motion: Cardiac contraction & Respiratory expansion
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    const t = state.clock.getElapsedTime();
-
-    if (organId === 'heart') {
-      // Lub-dub cardiac rhythm
-      const beat = Math.sin(t * 4.6);
-      const s = 1 + (beat > 0.35 ? (beat - 0.35) * 0.038 : 0);
-      meshRef.current.scale.set(s, s, s);
-    } else if (organId === 'lungs') {
-      // Gentle respiratory rhythm
-      const breath = 1 + Math.sin(t * 1.8) * 0.022;
-      meshRef.current.scale.set(breath, breath, breath);
-    } else if (highlighted || organId === selected) {
-      // Subtle alert pulse
-      const pulse = 1 + Math.sin(t * 3.5) * 0.015;
-      meshRef.current.scale.set(pulse, pulse, pulse);
-    }
-  });
+  // Preserve anatomical registration; avoid scaling off-origin meshes during selection.
 
   const select = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -980,7 +961,7 @@ export default function Anatomy({
                   return <OrganAura key={k + '-aura'} position={position}
                     color={focused || flagged ? '#ff9b35' : '#1bc0eb'}
                     size={Math.min(1.1,Math.max(0.3,extent*1.2))}
-                    strength={focused ? 0.95 : flagged ? 0.65 : 0.18} />;
+                    strength={focused ? 0.22 : flagged ? 0.12 : 0.08} />;
                 })}
 
               {/* 5. 3D Radar Beacon on Selected Organ Surface */}
