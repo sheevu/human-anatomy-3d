@@ -1,7 +1,7 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
-import { Box3, Color, DoubleSide, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
+import { DoubleSide, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
 import type { OrbitControls as OrbitControlsType } from 'three-stdlib';
 import { fitDistance, systems, type AtlasManifest, type AtlasPart } from './atlas';
 import './detailed-atlas.css';
@@ -9,13 +9,13 @@ import './detailed-atlas.css';
 type AtlasSystem = Exclude<keyof typeof systems, 'organs'>;
 type Bounds = { center: [number, number, number]; size: [number, number, number] };
 const SYSTEM_KEYS = Object.keys(systems).filter((key) => key !== 'organs') as AtlasSystem[];
-const FULL_BODY: Bounds = { center: [0, 0.85, 0], size: [2.4, 4.6, 1.35] };
+const FULL_BODY: Bounds = { center: [0, 0, 0], size: [2.4, 4.8, 1.35] };
 const normalize = (value: string) => value.toLowerCase().replace(/\.\d{3}$/g, '').replace(/[^a-z0-9]/g, '');
 const finite = (value: number) => Number.isFinite(value) && value > 0 ? value : 0.1;
 
 function AtlasCamera({ target, controls }: {
   target: Bounds;
-  controls: React.RefObject<OrbitControlsType | null>;
+  controls: RefObject<OrbitControlsType | null>;
 }) {
   const { camera, size, invalidate } = useThree();
   useEffect(() => {
