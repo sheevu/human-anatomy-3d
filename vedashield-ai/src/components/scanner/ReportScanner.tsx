@@ -17,6 +17,7 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
   const lang = i18n.language === 'hi' ? 'hi' : 'en';
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [scanError, setScanError] = useState('');
   const [reportTitle, setReportTitle] = useState('');
   const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
   const [labName, setLabName] = useState('');
@@ -29,6 +30,8 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
     if (!acceptedFiles || acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
     setIsProcessing(true);
+    setScanError('');
+    setRawText('');
     try {
       const result = await parseMedicalDocument(file, file.name);
       setReportTitle(file.name.replace(/\.[^/.]+$/, ''));
@@ -37,7 +40,7 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
       setExtractedRows(result.rows);
       setRawText(result.extractedText);
     } catch (err) {
-      console.error('Scan error:', err);
+      setScanError('Unable to extract readable results. Please retry or enter the values manually. No values were generated.');
     } finally {
       setIsProcessing(false);
     }
@@ -50,10 +53,14 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
       'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
     },
     maxFiles: 1,
+    maxSize: 10 * 1024 * 1024,
+    onDropRejected: () => setScanError('Choose a supported PDF or image under 10 MB.'),
   });
 
   // Handle Preset selection
   const handleSelectPreset = (idx: number) => {
+    setScanError('');
+    setRawText('');
     const preset = SAMPLE_REPORTS[idx];
     setReportTitle(preset.title);
     setReportDate(preset.date);
@@ -90,8 +97,8 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
       id: `row-${Date.now()}`,
       name: '',
       value: '',
-      unit: 'mg/dL',
-      range: '70 - 100',
+      unit: '',
+      range: '',
       status: 'unknown',
       organ: null,
     };
@@ -179,6 +186,7 @@ export function ReportScanner({ activeProfileId, onReportSaved }: ReportScannerP
             )}
           </div>
 
+          {scanError && <div role="alert" className="p-3 rounded-xl border border-amber-500 text-sm">{lang === 'hi' ? 'रिपोर्ट पढ़ी नहीं जा सकी। दोबारा प्रयास करें या मान स्वयं दर्ज करें।' : scanError}<button type="button" className="block underline mt-2" onClick={() => { setExtractedRows([]); setReportTitle(''); setLabName(''); setReportDate(''); setDoctorNotes(''); setScanError(''); }}>{lang === 'hi' ? 'स्वयं दर्ज करें' : 'Enter manually'}</button></div>}
           {/* 1-Click Realistic Presets for Instant Demo */}
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-3">

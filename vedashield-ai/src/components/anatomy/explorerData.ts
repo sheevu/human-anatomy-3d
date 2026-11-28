@@ -1,3 +1,5 @@
+export const anatomyHindi: Record<string, string> = { brain: 'मस्तिष्क', heart: 'हृदय', lungs: 'फेफड़े', liver: 'यकृत', stomach: 'आमाशय', pancreas: 'अग्न्याशय', kidneys: 'गुर्दे', intestines: 'आंतें', skeleton: 'वक्षीय अस्थियाँ', vascular: 'प्रमुख रक्त वाहिकाएँ' };
+
 export const structures = [
   { id: 'brain', name: 'Brain', system: 'Nervous', color: '#c68eac', description: 'The brain processes sensory information and coordinates movement, thought and memory.', location: 'Within the skull.', coverage: 'Combined brain structures; individual lobes and nerves are not separately selectable.' },
   { id: 'heart', name: 'Heart', system: 'Circulatory', color: '#b94b61', description: 'A muscular organ that pumps blood through the pulmonary and systemic circulations.', location: 'In the chest, between the lungs.', coverage: 'One simplified heart surface; chambers, valves and coronary vessels are not separated.' },

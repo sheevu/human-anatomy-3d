@@ -21,15 +21,15 @@ export async function parseMedicalDocument(fileOrBase64: File | string, fileName
     const res = await fetch('/api/ai/scan', {
       method: 'POST',
       body: formData,
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(30000),
     });
     if (res.ok) {
       const data = await res.json();
       if (data && data.rows && data.rows.length > 0) {
         return {
           title: data.title || fileName || 'Lab Test Report',
-          date: data.date || new Date().toISOString().slice(0, 10),
-          labName: data.labName || 'Diagnostic Laboratory',
+          date: data.date || '',
+          labName: data.labName || '',
           rows: data.rows.map((r: any, idx: number) => ({
             id: `row-${Date.now()}-${idx}`,
             name: r.name,
@@ -48,20 +48,8 @@ export async function parseMedicalDocument(fileOrBase64: File | string, fileName
     console.info('Backend scanner unavailable, using local OCR regex parser.');
   }
 
-  // Local deterministic text fallback
-  const text = typeof fileOrBase64 === 'string'
-    ? fileOrBase64
-    : `Fasting Blood Glucose 115 mg/dL 70-99
-HbA1c 6.2 % <5.7
-Total Cholesterol 215 mg/dL <200
-LDL Cholesterol 135 mg/dL <100
-HDL Cholesterol 48 mg/dL >40
-Serum Triglycerides 170 mg/dL <150
-Serum Creatinine 0.92 mg/dL 0.7-1.3
-SGPT / ALT 34 U/L 7-56
-Hemoglobin 13.8 g/dL 12.0-16.0`;
-
-  return extractRowsFromText(text, fileName || 'Medical Report');
+  if (typeof fileOrBase64 !== 'string') throw new Error('Document extraction unavailable. No results were generated.');
+  return extractRowsFromText(fileOrBase64, fileName || 'Medical Report');
 }
 
 export function extractRowsFromText(text: string, title = 'Uploaded Medical Report'): ScanResult {
@@ -97,28 +85,7 @@ export function extractRowsFromText(text: string, title = 'Uploaded Medical Repo
     }
   }
 
-  // If no rows parsed via strict regex, provide default rows if it was a file upload
-  if (rows.length === 0) {
-    const fallbackNames = [
-      { name: 'Fasting Blood Glucose', value: '112', unit: 'mg/dL', range: '70 - 99' },
-      { name: 'Total Cholesterol', value: '210', unit: 'mg/dL', range: '< 200' },
-      { name: 'Serum Creatinine', value: '0.90', unit: 'mg/dL', range: '0.7 - 1.3' },
-      { name: 'SGPT / ALT', value: '38', unit: 'U/L', range: '7 - 56' },
-      { name: 'Hemoglobin', value: '13.5', unit: 'g/dL', range: '12.0 - 15.5' },
-    ];
-    for (const item of fallbackNames) {
-      rows.push({
-        id: `fb-${Date.now()}-${rows.length}`,
-        name: item.name,
-        value: item.value,
-        numericValue: parseFloat(item.value),
-        unit: item.unit,
-        range: item.range,
-        status: rangeStatus(item),
-        organ: organFor(item.name)
-      });
-    }
-  }
+  if (!rows.length) throw new Error('No readable laboratory results found.');
 
   return {
     title,

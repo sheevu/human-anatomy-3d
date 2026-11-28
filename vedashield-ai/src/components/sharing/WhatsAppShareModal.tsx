@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MedicalReport, FamilyProfile } from '../../types';
 import confetti from 'canvas-confetti';
@@ -31,7 +31,8 @@ export function WhatsAppShareModal({
   const [hasConsented, setHasConsented] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  if (!isOpen || !report) return null;
+  useEffect(() => { setHasConsented(false); setCopied(false); }, [isOpen, report?.id, profile?.id, lang]);
+  if (!isOpen || !report || report.profileId !== profile?.id || !report.verified) return null;
 
   // Format the structured WhatsApp text
   const abnormalRows = report.rows.filter(
@@ -60,7 +61,7 @@ ${
             }]`
         )
         .join('\n')
-    : '✅ सभी जाँचे गए बायोमार्कर सामान्य सीमा में हैं।'
+    : 'सीमा से बाहर कोई परिणाम चिह्नित नहीं है; कुछ सीमाएँ अज्ञात हो सकती हैं।'
 }
 
 ${
@@ -77,7 +78,7 @@ ${report.aiSummaryHi || report.aiSummaryEn || 'शैक्षिक उद्�
 ⚕️ *सूचना:* यह सारांश केवल शैक्षिक संदर्भ के लिए है। किसी भी निदान या दवा के लिए अपने डॉक्टर से परामर्श लें।
 _सुरक्षित रूप से वेदशील्ड एआई द्वारा जनरेट किया गया_`;
   } else {
-    shareText = `🛡️ *VedaShield AI - Verified Health Summary*
+    shareText = `🛡️ *VedaShield AI - User-reviewed Health Summary*
 
 👤 *Patient:* ${profile?.name || 'Family Member'} (${profile?.relationship || 'Self'})
 📋 *Report:* ${report.title}
@@ -94,7 +95,7 @@ ${
             `⚠️ *${r.name}:* ${r.value} ${r.unit} (Target: ${r.range}) [${r.status.toUpperCase()}]`
         )
         .join('\n')
-    : '✅ All tested biomarkers are within standard reference ranges.'
+    : 'No above/below-range results identified; unknown ranges may remain.'
 }
 
 ${
@@ -115,9 +116,7 @@ _Generated privately via VedaShield AI_`;
   const handleOpenWhatsApp = () => {
     if (!hasConsented) return;
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
-    const encoded = encodeURIComponent(shareText);
-    const url = `https://api.whatsapp.com/send?text=${encoded}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    void handleNativeShare();
   };
 
   const handleNativeShare = async () => {
@@ -136,10 +135,9 @@ _Generated privately via VedaShield AI_`;
     }
   };
 
-  const handleCopyText = () => {
-    navigator.clipboard.writeText(shareText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyText = async () => {
+    if (!hasConsented) return;
+    try { await navigator.clipboard.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { setCopied(false); }
   };
 
   return (
@@ -194,6 +192,7 @@ _Generated privately via VedaShield AI_`;
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={handleCopyText}
+            disabled={!hasConsented}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             {copied ? (
@@ -227,7 +226,7 @@ _Generated privately via VedaShield AI_`;
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>{t('share.sendWhatsApp')}</span>
+              <span>{lang === 'hi' ? 'WhatsApp पर साझा करें / कॉपी करें' : 'Share to WhatsApp / copy'}</span>
               <ExternalLink className="w-3.5 h-3.5 opacity-80" />
             </button>
           </div>
