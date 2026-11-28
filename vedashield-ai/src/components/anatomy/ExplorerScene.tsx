@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
 import { Box3, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3, DoubleSide } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { fitDistance, structures, type Bounds, type StructureId } from './explorerData';
+import { anatomyHindi, fitDistance, structures, type Bounds, type StructureId } from './explorerData';
 
 export class SceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode; onError?: () => void }, { failed: boolean }> {
   state = { failed: false };
@@ -109,7 +109,7 @@ export default function ExplorerScene({ selected, visible, skin, command, rotati
       <Suspense fallback={null}><Model id={id} visible={id === 'body' ? skin > 0 : visible.has(id)} selected={selected === id}
         opacity={id === 'body' ? skin : id === 'skeleton' ? .55 : 1} onSelect={onSelect} onReady={onReady} /></Suspense>
     </SceneBoundary>)}
-    {label && selected && visible.has(selected) && bounds[selected] && <Html center position={bounds[selected].center} style={{ pointerEvents: 'none' }}><span className="explorer-model-label">{name}</span></Html>}
+    {label && selected && visible.has(selected) && bounds[selected] && <Html center position={bounds[selected].center} style={{ pointerEvents: 'none' }}><span className="explorer-model-label">{name} · {anatomyHindi[selected]}</span></Html>}
     <Camera command={command} rotating={rotating} />
   </Canvas>;
 }
