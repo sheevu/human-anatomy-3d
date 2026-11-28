@@ -18,10 +18,12 @@ export default function AnatomyExplorer() {
   const fail = useCallback((id: string) => setFailed(previous => previous.includes(id) ? previous : [...previous, id]), []);
   const frame = useCallback((value: Bounds, direction: CameraCommand['direction'] = 'front') => setCommand(previous => ({ revision: previous.revision + 1, bounds: value, direction })), []);
   const reset = useCallback(() => {
-    setSelected(null); setHidden(new Set()); setIsolated(false); setSystem('All systems'); setQuery(''); setRotating(false); setSkin(.12); frame(full);
+    setSelected(null); setHidden(new Set()); setIsolated(false); setSystem('All systems'); setQuery(''); setRotating(false); setSkin(.12); setLabel(false); frame(full);
   }, [frame, full]);
   const select = useCallback((id: StructureId) => {
     setSelected(id);
+    const structure = structures.find(item => item.id === id);
+    if (structure) setSystem(previous => previous === 'All systems' || previous === structure.system ? previous : 'All systems');
     setHidden(previous => { const next = new Set(previous); next.delete(id); return next; });
     if (isolated && bounds[id]) frame(bounds[id]);
   }, [isolated, bounds, frame]);
@@ -37,7 +39,8 @@ export default function AnatomyExplorer() {
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setSelected(null); setIsolated(false); frame(full); } };
     window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape);
   }, [frame, full]);
-  const pending = 11 - Object.keys(bounds).length - failed.filter(id => id !== 'graphics').length;
+  const totalModels = structures.length + 1;
+  const pending = Math.max(0, totalModels - new Set([...Object.keys(bounds), ...failed.filter(id => id !== 'graphics')]).size);
   const isVisible = selected ? visible.has(selected) : false;
   return <main className="anatomy-explorer">
     <header className="explorer-header"><a className="explorer-brand" href="/" aria-label="VedaShield home"><Activity size={23} /><span>VEDASHIELD <small>ANATOMY ATLAS</small></span></a><a className="explorer-back" href="/"><ArrowLeft size={16} /> Health workspace</a></header>
@@ -63,7 +66,7 @@ export default function AnatomyExplorer() {
             <ExplorerScene selected={selected} visible={visible} skin={isolated ? 0 : skin} command={command} rotating={rotating} label={label} onSelect={select} onReady={ready} onError={fail} retry={retry} bounds={bounds} />
           </SceneBoundary>
         </div>
-        {pending > 0 && !failed.includes('graphics') && <div className="explorer-loading" role="status"><span /> Loading anatomy ({Math.max(0, 11 - pending)}/11)</div>}
+        {pending > 0 && !failed.includes('graphics') && <div className="explorer-loading" role="status"><span /> Loading anatomy ({Math.max(0, totalModels - pending)}/{totalModels})</div>}
         {failed.length > 0 && <div className="explorer-load-error" role="alert">{failed.includes('graphics') ? 'Graphics interrupted.' : `${failed.length} model(s) could not load.`} <button onClick={retryModels}>Retry</button></div>}
         <div className="explorer-camera-views" role="group" aria-label="Camera views">{(['front', 'back', 'side'] as const).map(direction => <button key={direction} aria-pressed={command.direction === direction} onClick={() => frame(isolated && selected && bounds[selected] ? bounds[selected] : full, direction)}>{direction}</button>)}</div>
         <div className="explorer-toolbar" role="group" aria-label="Model controls">
