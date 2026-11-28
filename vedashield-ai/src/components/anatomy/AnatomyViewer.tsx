@@ -630,6 +630,7 @@ function BodyShell({
   }, []);
 
   useEffect(() => {
+    if (mode === 'hidden') return;
     const activeMat = materials[mode] || materials.hologram;
     activeMat.opacity = mode === 'wireframe' ? Math.max(0.08, opacity * 0.5) : opacity;
     activeMat.transparent = mode !== 'solid' || opacity < 0.98;
