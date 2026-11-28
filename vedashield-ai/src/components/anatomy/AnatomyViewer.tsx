@@ -524,15 +524,16 @@ function OrganModel({
   useFrame((state) => {
     if (meshRef.current) {
       const t = state.clock.getElapsedTime();
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { meshRef.current.scale.setScalar(1); return; }
       if (organKey === 'heart') {
         const beat = Math.sin(t * 7.5);
-        const pulse = 1 + (beat > 0.6 ? 0.04 : 0);
+        const pulse = 1 + (beat > 0.6 ? 0.008 : 0);
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else if (isHighlighted) {
-        const pulse = 1 + Math.sin(t * 3.8) * 0.03;
+        const pulse = 1 + Math.sin(t * 3.8) * 0.005;
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else if (isSelected) {
-        const pulse = 1 + Math.sin(t * 2.5) * 0.015;
+        const pulse = 1 + Math.sin(t * 2.5) * 0.005;
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else {
         meshRef.current.scale.set(1, 1, 1);
@@ -651,7 +652,7 @@ function SkeletalSystem() {
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const m = child as THREE.Mesh;
-        if (m.geometry) if (!m.geometry.getAttribute('normal')) m.geometry.computeVertexNormals();
+        if (m.geometry && !m.geometry.getAttribute('normal')) m.geometry.computeVertexNormals();
         m.material = new THREE.MeshStandardMaterial({
           color: new THREE.Color('#f5eedc'),
           roughness: 0.45,
