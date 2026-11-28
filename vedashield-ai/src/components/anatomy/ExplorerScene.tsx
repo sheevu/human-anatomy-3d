@@ -1,7 +1,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
-import { Box3, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3 } from 'three';
+import { Box3, Mesh, MeshStandardMaterial, PerspectiveCamera, Vector3, DoubleSide } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { fitDistance, structures, type Bounds, type StructureId } from './explorerData';
 
@@ -23,7 +23,7 @@ function Model({ id, visible, selected, opacity, onSelect, onReady }: {
     copy.traverse(object => {
       if (object instanceof Mesh) {
         if (!object.geometry.getAttribute('normal')) object.geometry.computeVertexNormals();
-        object.material = new MeshStandardMaterial({ color, roughness: .62, metalness: .02 });
+        object.material = new MeshStandardMaterial({ color, roughness: id === 'body' ? .35 : .58, metalness: .02, side: id === 'body' ? DoubleSide : undefined });
         if (id === 'body') object.raycast = () => {};
       }
     });
@@ -40,12 +40,13 @@ function Model({ id, visible, selected, opacity, onSelect, onReady }: {
     clone.traverse(object => {
       if (object instanceof Mesh) {
         const material = object.material as MeshStandardMaterial;
-        material.color.set(selected ? '#168a79' : color);
-        material.emissive.set(selected ? '#126f61' : '#000000');
-        material.emissiveIntensity = selected ? .28 : 0;
+        material.color.set(id === 'body' ? '#86b8c6' : color);
+        material.emissive.set(selected ? '#24b5a4' : '#000000');
+        material.emissiveIntensity = selected ? .38 : 0;
         material.opacity = selected ? 1 : opacity;
         material.transparent = material.opacity < 1;
         material.depthWrite = !material.transparent;
+        object.renderOrder = id === 'body' ? 2 : 0;
         material.needsUpdate = true;
       }
     });
@@ -103,7 +104,7 @@ export default function ExplorerScene({ selected, visible, skin, command, rotati
     gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
     fallback={<div className="explorer-fallback">3D graphics are unavailable. Structure details remain available in the browser.</div>}
     onCreated={({ gl }) => { gl.domElement.addEventListener('webglcontextlost', event => { event.preventDefault(); onError('graphics'); }, { once: true }); }}>
-    <ambientLight intensity={1.5} /><directionalLight position={[4, 6, 5]} intensity={2.1} /><directionalLight position={[-4, 2, -3]} intensity={1.4} />
+    <hemisphereLight args={['#e0f2fe', '#23354a', 1.25]} /><directionalLight position={[4, 6, 5]} intensity={2.2} color="#fff4e7" /><directionalLight position={[-4, 2, -3]} intensity={1.3} color="#8dd9ec" />
     {['body', ...structures.map(s => s.id)].map(id => <SceneBoundary key={`${id}-${retry}`} fallback={null} onError={() => onError(id)}>
       <Suspense fallback={null}><Model id={id} visible={id === 'body' ? skin > 0 : visible.has(id)} selected={selected === id}
         opacity={id === 'body' ? skin : id === 'skeleton' ? .55 : 1} onSelect={onSelect} onReady={onReady} /></Suspense>
