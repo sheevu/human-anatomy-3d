@@ -183,7 +183,7 @@ function MedicalOrganCallout({
     }
   });
 
-  const accentColor = status === 'high' ? '#ef4444' : status === 'low' ? '#f59e0b' : '#38bdf8';
+  const accentColor = '#38bdf8';
 
   return (
     <group>
@@ -270,7 +270,7 @@ function MedicalOrganCallout({
 
           {/* Finding Alert or Healthy Tag */}
           <div className="mt-1.5 flex items-center justify-between text-[10px]">
-            {status ? (
+            {status === 'high' || status === 'low' ? (
               <span
                 className={`font-bold uppercase px-1.5 py-0.5 rounded-full flex items-center gap-1 ${
                   status === 'high'
@@ -284,7 +284,7 @@ function MedicalOrganCallout({
             ) : (
               <span className="font-medium text-emerald-400 bg-emerald-950/70 px-1.5 py-0.5 rounded-full border border-emerald-800/50 flex items-center gap-1">
                 <CheckCircle2 className="w-2.5 h-2.5" />
-                <span>Normal Limits</span>
+                <span>{status === 'within' ? 'Test within range' : 'Educational anatomy'}</span>
               </span>
             )}
 
@@ -489,15 +489,15 @@ function OrganModel({
   // Color calculation
   const targetColor = useMemo(() => {
     if (isHighlighted) {
-      return severity === 'high' ? new THREE.Color('#ef4444') : new THREE.Color('#f59e0b');
+      return new THREE.Color(organMeta.color);
     }
-    if (isSelected) return new THREE.Color('#10b981');
+    if (isSelected) return new THREE.Color(organMeta.color);
     if (hovered) return new THREE.Color('#38bdf8');
     return new THREE.Color(organMeta.color);
   }, [isHighlighted, severity, isSelected, hovered, organMeta.color]);
 
   const targetEmissive = useMemo(() => {
-    if (isHighlighted || isSelected) return targetColor;
+    if (isHighlighted || isSelected) return new THREE.Color('#24b5a4');
     if (hovered) return new THREE.Color('#0284c7');
     return new THREE.Color('#000000');
   }, [isHighlighted, isSelected, hovered, targetColor]);
@@ -1381,13 +1381,13 @@ export function AnatomyViewer({
             />
           ) : (
             <Canvas
-              dpr={[1, 1.75]}
+              dpr={[1, 1.5]}
               performance={{ min: 0.5 }}
               camera={{ position: [0, 1.25, 3.2], fov: 45 }}
               gl={{
                 antialias: true,
                 alpha: true,
-                powerPreference: 'high-performance',
+                powerPreference: 'default',
               }}
             >
               <StabilizedCameraController
