@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { Activity, ArrowLeft, ArrowRight, Crosshair, Eye, EyeOff, Focus, Layers, Minus, Plus, RotateCcw, RotateCw, Search, X } from 'lucide-react';
 import ExplorerScene, { SceneBoundary, type CameraCommand } from './ExplorerScene';
-import { bodySystems, fullBody, structures, type Bounds, type StructureId } from './explorerData';
+import { anatomyHindi, bodySystems, fullBody, structures, type Bounds, type StructureId } from './explorerData';
 import './explorer.css';
 
 export default function AnatomyExplorer() {
@@ -27,7 +27,7 @@ export default function AnatomyExplorer() {
     setHidden(previous => { const next = new Set(previous); next.delete(id); return next; });
     if (isolated && bounds[id]) frame(bounds[id]);
   }, [isolated, bounds, frame]);
-  const list = useMemo(() => structures.filter(s => (system === 'All systems' || s.system === system) && `${s.name} ${s.system}`.toLowerCase().includes(query.toLowerCase().trim())), [system, query]);
+  const list = useMemo(() => structures.filter(s => (system === 'All systems' || s.system === system) && `${s.name} ${anatomyHindi[s.id]} ${s.system}`.toLowerCase().includes(query.toLowerCase().trim())), [system, query]);
   const visible = useMemo(() => new Set(structures.filter(s => !hidden.has(s.id) && (system === 'All systems' || s.system === system) && (!isolated || selected === s.id)).map(s => s.id)), [system, hidden, isolated, selected]);
   const move = (change: Partial<CameraCommand>) => setCommand(previous => ({ revision: previous.revision + 1, bounds: previous.bounds, direction: previous.direction, ...change }));
   const retryModels = () => {
@@ -52,7 +52,7 @@ export default function AnatomyExplorer() {
         <label className="explorer-system">Body system<select value={system} onChange={event => { setSystem(event.target.value); setSelected(null); setIsolated(false); frame(full); }}>{bodySystems.map(name => <option key={name}>{name}</option>)}</select></label>
         <div className="explorer-list-heading"><span>{list.length} structures</span>{hidden.size > 0 && <button onClick={() => setHidden(new Set())}>Show all ({hidden.size})</button>}</div>
         <div className="explorer-list">{list.map(s => <div className={`explorer-row ${selected === s.id ? 'is-selected' : ''}`} key={s.id}>
-          <button className="explorer-select" aria-pressed={selected === s.id} onClick={() => select(s.id)}><i style={{ background: s.color }} /><span>{s.name}<small>{failed.includes(s.id) ? 'Model unavailable' : s.system}</small></span></button>
+          <button className="explorer-select" aria-pressed={selected === s.id} onClick={() => select(s.id)}><i style={{ background: s.color }} /><span>{s.name}<small lang="hi">{anatomyHindi[s.id]}</small><small>{failed.includes(s.id) ? 'Model unavailable' : s.system}</small></span></button>
           <button className="explorer-icon" title={`${hidden.has(s.id) ? 'Show' : 'Hide'} ${s.name}`} aria-label={`${hidden.has(s.id) ? 'Show' : 'Hide'} ${s.name}`} aria-pressed={!hidden.has(s.id)} onClick={() => { setHidden(previous => { const next = new Set(previous); if (next.has(s.id)) next.delete(s.id); else next.add(s.id); return next; }); setIsolated(false); }}>{hidden.has(s.id) ? <EyeOff size={16} /> : <Eye size={16} />}</button>
         </div>)}{!list.length && <div className="explorer-empty">No matching structures.<button onClick={() => { setQuery(''); setSystem('All systems'); }}>Clear filters</button></div>}</div>
         <div className="explorer-layer"><label htmlFor="body-opacity">Body surface <output>{Math.round(skin * 100)}%</output></label><input id="body-opacity" type="range" min="0" max="0.4" step="0.01" value={skin} onChange={event => setSkin(Number(event.target.value))} /></div>
@@ -79,7 +79,7 @@ export default function AnatomyExplorer() {
       </section>
       <aside className="explorer-details" aria-label="Structure details" aria-live="polite">
         <div className="explorer-detail-heading"><span className="explorer-eyebrow">{current ? 'SELECTED STRUCTURE' : 'ANATOMICAL REFERENCE'}</span>{current && <button className="explorer-icon" title="Clear selection" aria-label="Clear selection" onClick={() => { setSelected(null); setIsolated(false); frame(full); }}><X size={17} /></button>}</div>
-        {current ? <><span className="explorer-system-tag" style={{ borderColor: current.color }}>{current.system}</span><h2>{current.name}</h2><p>{current.description}</p><h3>Location</h3><p>{current.location}</p>
+        {current ? <><span className="explorer-system-tag" style={{ borderColor: current.color }}>{current.system}</span><h2>{current.name}</h2><p lang="hi">{anatomyHindi[current.id]}</p><p>{current.description}</p><h3>Location</h3><p>{current.location}</p>
           <div className="explorer-detail-actions"><button disabled={!bounds[current.id] || !isVisible} onClick={() => frame(bounds[current.id])}><Focus size={16} /> Focus</button><button disabled={!bounds[current.id] || !isVisible} aria-pressed={isolated} onClick={() => { setIsolated(!isolated); frame(isolated ? full : bounds[current.id]); }}><Layers size={16} /> {isolated ? 'In context' : 'Isolate'}</button></div>
           {!isVisible && <p role="status">This structure is hidden. <button className="explorer-text-button" onClick={() => select(current.id)}>Show structure</button></p>}
           <h3>Model coverage</h3><p>{current.coverage}</p><dl><dt>Source</dt><dd>DBCLS / BodyParts3D</dd><dt>Representation</dt><dd>Simplified surface mesh</dd></dl>
