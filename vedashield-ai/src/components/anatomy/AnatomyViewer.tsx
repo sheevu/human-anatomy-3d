@@ -127,7 +127,7 @@ function StabilizedCameraController({
       zoomSpeed={0.9}
       panSpeed={0.7}
       minDistance={0.3}
-      maxDistance={6.0}
+      maxDistance={14.0}
       target={[targetLookAt.x, targetLookAt.y, targetLookAt.z]}
       autoRotate={autoRotate && !isInteracting && !isTransitioningRef.current}
       autoRotateSpeed={1.2}
@@ -466,15 +466,17 @@ function OrganModel({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (mesh.geometry) {
-          mesh.geometry.computeVertexNormals();
+          if (!mesh.geometry.getAttribute('normal')) mesh.geometry.computeVertexNormals();
         }
         const mat = new THREE.MeshStandardMaterial({
           color: new THREE.Color(organMeta.color),
-          roughness: 0.28,
-          metalness: 0.12,
-          emissive: new THREE.Color('#000000'),
-          emissiveIntensity: 0.05,
-          transparent: true,
+          roughness: 0.48,
+          metalness: 0,
+          side: THREE.DoubleSide,
+          emissive: new THREE.Color(organMeta.color),
+          emissiveIntensity: 0.28,
+          transparent: false,
+          depthWrite: true,
           opacity: 1.0,
         });
         mesh.material = mat;
@@ -499,10 +501,10 @@ function OrganModel({
   const targetEmissive = useMemo(() => {
     if (isHighlighted || isSelected) return new THREE.Color('#24b5a4');
     if (hovered) return new THREE.Color('#0284c7');
-    return new THREE.Color('#000000');
+    return targetColor;
   }, [isHighlighted, isSelected, hovered, targetColor]);
 
-  const targetEmissiveIntensity = isHighlighted ? 0.65 : isSelected ? 0.5 : hovered ? 0.35 : 0.05;
+  const targetEmissiveIntensity = isHighlighted ? 0.48 : isSelected ? 0.42 : hovered ? 0.38 : 0.28;
 
   // In-place material uniform update (Ultra-fast O(1) WebGL call, zero normal recalculation)
   useEffect(() => {
@@ -510,23 +512,28 @@ function OrganModel({
       mat.color.copy(targetColor);
       mat.emissive.copy(targetEmissive);
       mat.emissiveIntensity = targetEmissiveIntensity;
-      mat.opacity = isDimmed && !isSelected ? 0.16 : 1.0;
+      mat.opacity = isDimmed && !isSelected ? 0.12 : 1.0;
+      mat.transparent = mat.opacity < 1;
+      mat.depthWrite = !mat.transparent;
       mat.needsUpdate = true;
     });
   }, [materials, targetColor, targetEmissive, targetEmissiveIntensity, isDimmed, isSelected]);
 
+  useEffect(() => () => materials.forEach(mat => mat.dispose()), [materials]);
+
   useFrame((state) => {
     if (meshRef.current) {
       const t = state.clock.getElapsedTime();
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { meshRef.current.scale.setScalar(1); return; }
       if (organKey === 'heart') {
         const beat = Math.sin(t * 7.5);
-        const pulse = 1 + (beat > 0.6 ? 0.04 : 0);
+        const pulse = 1 + (beat > 0.6 ? 0.008 : 0);
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else if (isHighlighted) {
-        const pulse = 1 + Math.sin(t * 3.8) * 0.03;
+        const pulse = 1 + Math.sin(t * 3.8) * 0.005;
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else if (isSelected) {
-        const pulse = 1 + Math.sin(t * 2.5) * 0.015;
+        const pulse = 1 + Math.sin(t * 2.5) * 0.005;
         meshRef.current.scale.set(pulse, pulse, pulse);
       } else {
         meshRef.current.scale.set(1, 1, 1);
@@ -567,7 +574,6 @@ function BodyShell({
   mode: SkinMode;
   opacity: number;
 }) {
-  if (mode === 'hidden') return null;
 
   const { scene } = useGLTF('/models/body.glb');
   const { clonedScene, meshList } = useMemo(() => {
@@ -577,8 +583,10 @@ function BodyShell({
       if ((child as THREE.Mesh).isMesh) {
         const m = child as THREE.Mesh;
         if (m.geometry) {
-          m.geometry.computeVertexNormals();
+          if (!m.geometry.getAttribute('normal')) m.geometry.computeVertexNormals();
         }
+        m.raycast = () => {};
+        m.renderOrder = 5;
         list.push(m);
       }
     });
@@ -622,15 +630,19 @@ function BodyShell({
   }, []);
 
   useEffect(() => {
+    if (mode === 'hidden') return;
     const activeMat = materials[mode] || materials.hologram;
     activeMat.opacity = mode === 'wireframe' ? Math.max(0.08, opacity * 0.5) : opacity;
-    activeMat.transparent = opacity < 0.98;
+    activeMat.transparent = mode !== 'solid' || opacity < 0.98;
+    activeMat.depthWrite = !activeMat.transparent;
+    activeMat.needsUpdate = true;
     meshList.forEach((m) => {
       m.material = activeMat;
     });
   }, [meshList, mode, opacity, materials]);
 
-  return <primitive object={clonedScene} />;
+  useEffect(() => () => Object.values(materials).forEach(material => material.dispose()), [materials]);
+  return mode === 'hidden' ? null : <primitive object={clonedScene} dispose={null} />;
 }
 
 // Authentic Skeletal System from BodyParts3D (39 authentic meshes: Rib cage 1-12, Sternum, Clavicles, Vertebrae)
@@ -641,13 +653,16 @@ function SkeletalSystem() {
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const m = child as THREE.Mesh;
-        if (m.geometry) m.geometry.computeVertexNormals();
+        if (m.geometry && !m.geometry.getAttribute('normal')) m.geometry.computeVertexNormals();
         m.material = new THREE.MeshStandardMaterial({
           color: new THREE.Color('#f5eedc'),
           roughness: 0.45,
           metalness: 0.08,
           transparent: true,
-          opacity: 0.85,
+          depthWrite: false,
+          opacity: 0.48,
+          emissive: new THREE.Color('#b9a58b'),
+          emissiveIntensity: 0.18,
         });
       }
     });
@@ -665,7 +680,7 @@ function VascularSystem() {
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const m = child as THREE.Mesh;
-        if (m.geometry) m.geometry.computeVertexNormals();
+        if (m.geometry) if (!m.geometry.getAttribute('normal')) m.geometry.computeVertexNormals();
         m.material = new THREE.MeshStandardMaterial({
           color: new THREE.Color('#e11d48'),
           roughness: 0.32,
@@ -705,27 +720,26 @@ function SceneContent({
 }) {
   return (
     <>
-      <ambientLight intensity={1.1} />
-      <directionalLight position={[4, 8, 5]} intensity={1.4} />
-      <directionalLight position={[-4, 3, -4]} intensity={0.7} color="#93c5fd" />
-      <pointLight position={[0, 1.2, 2.5]} intensity={0.6} color="#34d399" />
-      <pointLight position={[0, -1.0, 2.0]} intensity={0.4} color="#60a5fa" />
+      <hemisphereLight args={['#f4f8ff', '#65778c', 2.0]} />
+      <directionalLight position={[4, 6, 7]} intensity={3.0} color="#fff3e5" />
+      <directionalLight position={[-5, 2, 4]} intensity={1.6} color="#c5edff" />
+      <directionalLight position={[1, 4, -5]} intensity={2.2} color="#80d9ef" />
 
       {/* Layer 1: Body Skin Shell (Adaptive transparency) */}
       {layers.skin && !isolateMode && (
         <Suspense fallback={null}>
           <BodyShell
             mode={layers.skinMode}
-            opacity={activeOrgan ? Math.min(layers.skinOpacity, 0.10) : layers.skinOpacity}
+            opacity={activeOrgan ? Math.min(layers.skinOpacity, 0.16) : layers.skinOpacity}
           />
         </Suspense>
       )}
 
       {/* Layer 2: Skeletal System */}
-      {layers.skeleton && !isolateMode && <SkeletalSystem />}
+      {layers.skeleton && !isolateMode && <Suspense fallback={null}><SkeletalSystem /></Suspense>}
 
       {/* Layer 3: Circulatory Vascular System */}
-      {layers.vascular && !isolateMode && <VascularSystem />}
+      {layers.vascular && !isolateMode && <Suspense fallback={null}><VascularSystem /></Suspense>}
 
       {/* Layer 4: Visceral Organs */}
       {layers.organs && (
@@ -916,11 +930,11 @@ export function AnatomyViewer({
   const [layers, setLayers] = useState<AnatomicalLayers>({
     skin: true,
     skinMode: 'hologram',
-    skinOpacity: 0.14,
+    skinOpacity: 0.19,
     organs: true,
     skeleton: true,
     vascular: true,
-    showLabels: true,
+    showLabels: false,
     showArrows: true,
   });
 
@@ -1024,19 +1038,19 @@ export function AnatomyViewer({
     }
     if (cameraAngle === 'back') {
       return {
-        targetPos: new THREE.Vector3(0, 1.25, -3.2),
-        targetLookAt: new THREE.Vector3(0, 1.15, 0),
+        targetPos: new THREE.Vector3(0, 0.1, -7.8),
+        targetLookAt: new THREE.Vector3(0, 0.1, 0),
       };
     }
     if (cameraAngle === 'left') {
       return {
-        targetPos: new THREE.Vector3(-3.2, 1.25, 0),
+        targetPos: new THREE.Vector3(-7.8, 0.1, 0),
         targetLookAt: new THREE.Vector3(0, 1.15, 0),
       };
     }
     if (cameraAngle === 'right') {
       return {
-        targetPos: new THREE.Vector3(3.2, 1.25, 0),
+        targetPos: new THREE.Vector3(7.8, 0.1, 0),
         targetLookAt: new THREE.Vector3(0, 1.15, 0),
       };
     }
@@ -1048,7 +1062,7 @@ export function AnatomyViewer({
     }
     // Default Front full torso frame
     return {
-      targetPos: new THREE.Vector3(0, 1.25, 3.2),
+      targetPos: new THREE.Vector3(0, 0.1, 7.8),
       targetLookAt: new THREE.Vector3(0, 1.15, 0),
     };
   }, [currentOrgan, cameraAngle]);
@@ -1269,7 +1283,8 @@ export function AnatomyViewer({
       <div className="relative flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-[560px]">
         {/* 3D Canvas Viewport */}
         <div
-          className="lg:col-span-8 relative w-full h-[460px] lg:h-full cursor-grab active:cursor-grabbing bg-slate-950"
+          className="lg:col-span-8 relative w-full h-[540px] sm:h-[650px] lg:h-full cursor-grab active:cursor-grabbing bg-slate-950"
+          style={{ background: 'radial-gradient(ellipse at 50% 45%, #344c60 0%, #172c40 55%, #0b1523 100%)' }}
           onMouseDown={() => setIsInteracting(true)}
           onMouseUp={() => setIsInteracting(false)}
           onTouchStart={() => setIsInteracting(true)}
@@ -1383,7 +1398,8 @@ export function AnatomyViewer({
             <Canvas
               dpr={[1, 1.5]}
               performance={{ min: 0.5 }}
-              camera={{ position: [0, 1.25, 3.2], fov: 45 }}
+              camera={{ position: [0, 0.1, 7.8], fov: 40, near: 0.01, far: 100 }}
+              onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.25; gl.outputColorSpace = THREE.SRGBColorSpace; }}
               gl={{
                 antialias: true,
                 alpha: true,
