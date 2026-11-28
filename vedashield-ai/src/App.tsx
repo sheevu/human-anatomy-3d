@@ -101,7 +101,9 @@ export function App() {
   const handleSelectProfile = async (id: string) => {
     setActiveProfileIdState(id);
     setActiveProfileId(id);
+    setReports([]); setSelectedReport(null); setFocusOrgan(null); setSelectedFinding(null); setShareReport(null); setIsShareOpen(false);
     const loadedReports = await getReports(id);
+    if (getActiveProfileId() !== id) return;
     setReports(loadedReports);
     if (loadedReports.length > 0) {
       setSelectedReport(loadedReports[0]);
@@ -129,10 +131,12 @@ export function App() {
   };
 
   const handleReportSaved = async (report: MedicalReport) => {
+    if (report.profileId !== activeProfileId || !report.verified) return;
     await saveReport(report);
     const updatedReports = await getReports(activeProfileId);
     setReports(updatedReports);
     setSelectedReport(report);
+    setFocusOrgan(null); setSelectedFinding(null);
     const firstAbnormal = report.rows.find((r) => r.status === 'high' || r.status === 'low');
     if (firstAbnormal && firstAbnormal.organ) {
       setFocusOrgan(firstAbnormal.organ);
@@ -165,6 +169,7 @@ export function App() {
   };
 
   const handleOpenWhatsAppShare = (report: MedicalReport) => {
+    if (report.profileId !== activeProfileId || !report.verified) return;
     setShareReport(report);
     setIsShareOpen(true);
   };
@@ -217,7 +222,7 @@ export function App() {
             <AnatomyViewer
               activeOrgan={focusOrgan}
               onSelectOrgan={setFocusOrgan}
-              reportRows={selectedReport?.rows || []}
+              reportRows={selectedReport?.verified && selectedReport.profileId === activeProfileId ? selectedReport.rows : []}
               selectedFinding={selectedFinding}
               onSelectFinding={setSelectedFinding}
               onOpenChatWithSymptom={handleOpenChatWithSymptom}
@@ -234,6 +239,7 @@ export function App() {
 
         {currentTab === 'scanner' && (
           <ReportScanner
+            key={activeProfileId}
             activeProfileId={activeProfileId || 'prof-self'}
             onReportSaved={handleReportSaved}
           />
